@@ -1,749 +1,616 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Abstract Math Tetris</title>
-    <style>
-        /* Bauhaus / Modern Abstract Art Aesthetic & Responsive Base */
-        :root {
-            --bg-color: #0d0d12;
-            --text-primary: #f6f7eb;
-            --accent-red: #ff3366;
-            --accent-blue: #20a4f3;
-            --accent-yellow: #ffd447;
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-            position: relative;
-            touch-action: none; /* Prevent scroll on mobile */
-        }
-
-        /* Liquid Blur Background */
-        .bg-layer {
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: -1;
-            overflow: hidden;
-            filter: blur(80px);
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        .blob {
-            position: absolute;
-            border-radius: 50%;
-            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-            mix-blend-mode: screen;
-        }
-
-        .blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: var(--accent-red); }
-        .blob-2 { bottom: -10%; right: -10%; width: 60vw; height: 60vw; background: var(--accent-blue); }
-        .blob-3 { top: 40%; left: 40%; width: 40vw; height: 40vw; background: rgba(255, 212, 71, 0.4); }
-
-        /* Top Bar UI */
-        .top-bar {
-            position: absolute;
-            top: 20px; width: 100%;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 30px;
-            z-index: 100;
-        }
-
-        .lang-switch, .info-btn {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            color: var(--text-primary);
-            padding: 8px 15px;
-            border-radius: 20px;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s;
-        }
-        .lang-switch:hover, .info-btn:hover {
-            background: rgba(255,255,255,0.15);
-            transform: scale(1.05);
-        }
-        .lang-options {
-            display: none;
-            position: absolute;
-            top: 45px;
-            right: 30px;
-            background: rgba(13, 13, 18, 0.9);
-            border: 1px solid var(--glass-border);
-            border-radius: 10px;
-            flex-direction: column;
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-        }
-        .lang-options.active { display: flex; }
-        .lang-options button {
-            background: none; border: none; padding: 10px 20px;
-            color: var(--text-primary); cursor: pointer; text-align: left;
-            transition: background 0.2s; box-shadow: none; text-transform: none; font-weight: normal;
-        }
-        .lang-options button:hover { background: var(--glass-bg); }
-
-        /* Modal / Guide Card */
-        .modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(5px); z-index: 200;
-            display: flex; justify-content: center; align-items: center;
-            opacity: 0; pointer-events: none; transition: opacity 0.3s;
-        }
-        .modal-overlay.active { opacity: 1; pointer-events: all; }
-        
-        .modal-content {
-            background: var(--glass-bg); border: 1px solid var(--glass-border);
-            padding: 40px; border-radius: 4px; max-width: 500px; width: 90%;
-            box-shadow: 20px 20px 0px rgba(0,0,0,0.5);
-            position: relative;
-            transform: translateY(20px); transition: transform 0.3s;
-        }
-        .modal-overlay.active .modal-content { transform: translateY(0); }
-        .modal-content h2 { color: var(--accent-yellow); margin-bottom: 20px; text-transform: uppercase; }
-        .modal-content p { margin-bottom: 15px; line-height: 1.6; color: #ccc; }
-        .modal-content ul { margin-bottom: 20px; padding-left: 20px; color: #ccc; line-height: 1.6; }
-        .modal-close {
-            position: absolute; top: 15px; right: 20px;
-            background: none; border: none; font-size: 2rem; color: #fff;
-            cursor: pointer; padding: 0; box-shadow: none;
-        }
-
-        /* Game Layout */
-        .game-wrapper {
-            position: relative;
-            display: flex;
-            gap: 40px;
-            align-items: flex-end;
-            z-index: 10;
-            transition: transform 0.1s ease-out; 
-            padding: 20px;
-        }
-
-        .side-panel { display: flex; flex-direction: column; gap: 20px; margin-bottom: 20px; }
-        
-        .glass-panel {
-            background: var(--glass-bg); backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border); padding: 20px; border-radius: 2px;
-            box-shadow: 10px 10px 0px rgba(0, 0, 0, 0.5); position: relative;
-        }
-        
-        .glass-panel::before {
-            content: ''; position: absolute; top: -10px; left: -10px;
-            width: 20px; height: 20px; background: var(--accent-red); border-radius: 50%; z-index: -1;
-        }
-        .panel-right .glass-panel::before { background: var(--accent-blue); border-radius: 0; width: 30px; height: 5px; top: 15px; left: -20px; }
-
-        h1 { font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; color: var(--accent-yellow); font-weight: 800; }
-        .stat-value { font-size: 2rem; font-weight: 300; font-variant-numeric: tabular-nums; }
-
-        .canvas-container {
-            position: relative; padding: 10px; background: var(--glass-bg);
-            border: 1px solid var(--glass-border); box-shadow: 20px 20px 0px rgba(0, 0, 0, 0.7);
-        }
-        canvas { background-color: #000; display: block; border-radius: 2px; }
-        #next-piece-canvas { background-color: transparent; width: 100px; height: 100px; }
-
-        /* Notifications & Overlays */
-        .level-notification {
-            position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 1.5rem; font-weight: bold; background: rgba(255, 51, 102, 0.9);
-            padding: 15px 30px; border-radius: 50px; opacity: 0; pointer-events: none;
-            transition: opacity 0.5s, transform 0.5s; z-index: 100; text-align: center;
-        }
-        .level-notification.show { opacity: 1; transform: translate(-50%, -30%); }
-
-        #game-over {
-            position: absolute; inset: 0; background: rgba(13, 13, 18, 0.9);
-            display: none; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 50; backdrop-filter: blur(5px);
-        }
-        #game-over h2 { font-size: 2.5rem; color: var(--accent-red); margin-bottom: 20px; text-align: center; }
-
-        button.action-btn {
-            background: var(--accent-blue); color: #fff; border: none; padding: 15px 30px;
-            font-size: 1.2rem; font-weight: bold; cursor: pointer; text-transform: uppercase;
-            box-shadow: 5px 5px 0px rgba(0,0,0,0.5); transition: transform 0.1s, box-shadow 0.1s;
-        }
-        button.action-btn:active { transform: translate(5px, 5px); box-shadow: 0px 0px 0px rgba(0,0,0,0.5); }
-
-        /* Mobile Controls */
-        .mobile-controls {
-            display: none;
-            width: 100%;
-            max-width: 400px;
-            margin-top: 20px;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            z-index: 100;
-        }
-        .m-btn {
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-            color: #fff; padding: 20px; font-size: 1.5rem; border-radius: 8px;
-            display: flex; justify-content: center; align-items: center; cursor: pointer;
-            user-select: none; -webkit-user-select: none;
-        }
-        .m-btn:active { background: rgba(255,255,255,0.3); }
-        .m-btn.up { grid-column: 2; }
-        .m-btn.left { grid-column: 1; }
-        .m-btn.down { grid-column: 2; }
-        .m-btn.right { grid-column: 3; }
-
-        /* Responsive Design */
-        @media (max-width: 900px) {
-            .game-wrapper { flex-direction: column; align-items: center; gap: 20px; padding-top: 80px; height: 100vh; overflow-y: auto; justify-content: flex-start; }
-            .side-panel { flex-direction: row; gap: 10px; margin-bottom: 0; width: 100%; max-width: 320px; justify-content: space-between; }
-            .glass-panel { padding: 10px; flex: 1; }
-            h1 { font-size: 0.9rem; }
-            .stat-value { font-size: 1.5rem; }
-            .panel-right { display: none; } /* Hide complex descriptions on mobile for space */
-            .mobile-controls { display: grid; }
-            .top-bar { padding: 0 15px; }
-            
-            /* Responsive Canvas Container */
-            .canvas-container { padding: 5px; width: 100%; max-width: 320px; display: flex; justify-content: center; }
-            canvas#gameCanvas { width: 100%; height: auto; aspect-ratio: 1/2; }
-            .controls-hint { display: none; }
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#d8d0c4" />
+<meta name="description" content="《垂直的海》——一部关于巴别塔、人工智能与失落语言的互动小说。" />
+<title>垂直的海｜一部巴别档案</title>
+<style>
+:root{
+  --paper:#d8d0c4; --paper2:#e6dfd4; --ink:#343936; --muted:#777b72;
+  --sage:#a6afa0; --sage-dark:#6f7d70; --rose:#b98f88; --clay:#aa927d;
+  --blue:#9caeb0; --night:#303a3c; --line:rgba(52,57,54,.19);
+  --serif:"Noto Serif CJK SC","Source Han Serif SC","Songti SC","STSong","SimSun",serif;
+  --mono:"SFMono-Regular","Cascadia Code","Menlo","Consolas",monospace;
+  --mx:50vw; --my:50vh;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);min-height:100vh;overflow-x:hidden;cursor:none}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--sage-dark);outline-offset:4px}
+::selection{background:#a6afa0;color:#26302c}
+#grain{position:fixed;inset:0;pointer-events:none;z-index:20;opacity:.13;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");mix-blend-mode:multiply}
+#cursor{position:fixed;left:0;top:0;width:18px;height:18px;border:1px solid rgba(52,57,54,.75);border-radius:50%;pointer-events:none;z-index:99;transform:translate(-50%,-50%);transition:width .2s,height .2s,background .2s,border-color .2s;mix-blend-mode:multiply}
+#cursor-dot{position:fixed;left:0;top:0;width:3px;height:3px;border-radius:50%;background:var(--ink);pointer-events:none;z-index:100;transform:translate(-50%,-50%)}
+body.hovering #cursor{width:42px;height:42px;background:rgba(166,175,160,.22);border-color:var(--sage-dark)}
+#light{position:fixed;inset:0;pointer-events:none;z-index:1;background:radial-gradient(560px circle at var(--mx) var(--my),rgba(255,250,239,.24),transparent 62%)}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.5}
+#grain,#light,#sky{user-select:none}
+.site{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column}
+.topbar{height:76px;padding:0 clamp(22px,5vw,76px);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#5e665f}
+.brand{display:flex;gap:13px;align-items:center}
+.brand-mark{width:23px;height:23px;display:grid;place-items:center;border:1px solid #747c72;border-radius:50%;font-family:var(--serif);font-size:15px;letter-spacing:0}
+.top-actions{display:flex;gap:20px;align-items:center}
+.control{border:0;background:none;padding:8px 0;color:inherit;font:inherit;letter-spacing:inherit;cursor:none;display:inline-flex;gap:7px;align-items:center;opacity:.8;transition:opacity .2s}
+.control:hover{opacity:1;color:var(--ink)}
+.control .ico{font-size:14px}
+.main{width:min(1320px,100%);margin:0 auto;padding:clamp(24px,5vw,64px) clamp(22px,5vw,76px) 38px;flex:1;display:flex;flex-direction:column}
+.cover{min-height:calc(100vh - 154px);display:grid;grid-template-columns:1.05fr .95fr;align-items:center;gap:5vw;position:relative}
+.cover-copy{padding:30px 0 64px;position:relative;z-index:2}
+.kicker{font-family:var(--mono);letter-spacing:.22em;font-size:10px;color:var(--sage-dark);text-transform:uppercase;display:flex;gap:13px;align-items:center}
+.kicker:before{content:"";width:34px;height:1px;background:var(--sage-dark)}
+h1{font-weight:400;font-size:clamp(56px,8vw,112px);line-height:1.12;letter-spacing:.06em;margin:38px 0 20px}
+.cover-sub{font-size:clamp(15px,1.45vw,19px);line-height:2.15;letter-spacing:.12em;color:#59615b;max-width:560px}
+.cover-meta{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:#85877e;margin-top:44px;line-height:2.1}
+.cover-visual{position:relative;min-height:550px;display:grid;place-items:center;overflow:visible}
+.cover-visual:before{content:"";position:absolute;width:min(38vw,480px);height:min(38vw,480px);border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(245,239,226,.7),rgba(185,143,136,.12) 55%,transparent 70%);filter:blur(2px)}
+.cover-art{width:min(100%,580px);height:auto;position:relative;z-index:1;filter:drop-shadow(0 18px 35px rgba(50,58,54,.12));animation:float 9s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-.5deg)}50%{transform:translateY(-13px) rotate(.5deg)}}
+.cover-note{position:absolute;right:5%;bottom:10%;font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:#7b8278;writing-mode:vertical-rl}
+.start-row{display:flex;align-items:center;gap:22px;margin-top:42px;flex-wrap:wrap}
+.primary{background:var(--ink);color:var(--paper2);border:1px solid var(--ink);padding:15px 27px;font-size:12px;letter-spacing:.18em;cursor:none;transition:all .25s;position:relative;overflow:hidden}
+.primary:after{content:"";position:absolute;inset:0;background:var(--sage);transform:translateX(-102%);transition:transform .35s;z-index:0}
+.primary span{position:relative;z-index:1}
+.primary:hover{color:var(--ink)}.primary:hover:after{transform:translateX(0)}
+.text-btn{border:0;background:none;padding:10px 0;font-size:11px;letter-spacing:.12em;color:#737970;cursor:none;border-bottom:1px solid var(--line)}
+.fineprint{font-size:10px;letter-spacing:.08em;color:#8a8b82;line-height:1.8}
+#story{display:none;min-height:calc(100vh - 210px);grid-template-columns:180px minmax(0,1fr);gap:clamp(35px,7vw,110px);animation:arrive .65s ease both}
+@keyframes arrive{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.rail{padding-top:20px;position:relative}
+.rail-sticky{position:sticky;top:35px}
+.rail-label{font:10px var(--mono);letter-spacing:.18em;color:#81877e;text-transform:uppercase;margin-bottom:19px}
+.progress-count{font:30px var(--serif);letter-spacing:.04em;color:#555f57}
+.progress-track{height:1px;background:rgba(52,57,54,.16);margin:14px 0 21px;position:relative}
+.progress-fill{height:1px;width:0;background:var(--sage-dark);transition:width .5s}
+.act-list{display:flex;flex-direction:column;gap:12px;margin:28px 0 42px}
+.act{font-size:11px;color:#92938a;letter-spacing:.08em;display:flex;align-items:center;gap:9px;transition:color .3s}
+.act:before{content:"";width:5px;height:5px;border:1px solid #a6aaa0;border-radius:50%}
+.act.active{color:var(--ink)}.act.active:before{background:var(--sage-dark);border-color:var(--sage-dark);box-shadow:0 0 0 4px rgba(111,125,112,.13)}
+.meters{border-top:1px solid var(--line);padding-top:19px}
+.meter{margin:13px 0}
+.meter-head{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.12em;color:#7d8279;margin-bottom:7px}
+.meter-line{height:2px;background:rgba(52,57,54,.12);position:relative}
+.meter-line i{display:block;height:100%;width:0;background:var(--sage-dark);transition:width .5s}
+.meter:nth-child(2) .meter-line i{background:var(--rose)}.meter:nth-child(3) .meter-line i{background:var(--clay)}
+.story-main{max-width:850px;padding:16px 0 70px;min-width:0}
+.scene-head{display:grid;grid-template-columns:1fr 180px;gap:24px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:30px}
+.scene-no{font:10px var(--mono);letter-spacing:.2em;color:#83877d;text-transform:uppercase;margin-bottom:15px}
+h2{font-size:clamp(32px,4vw,54px);font-weight:400;letter-spacing:.05em;line-height:1.25;margin:0}
+.scene-sub{font-size:11px;letter-spacing:.13em;color:#898b81;margin-top:13px}
+.scene-art{width:170px;height:132px;display:grid;place-items:center;opacity:.82}
+.scene-art svg{width:100%;height:100%;overflow:visible}
+.prose{font-size:15px;line-height:2.35;letter-spacing:.045em;color:#414a44;max-width:760px}
+.prose p{margin:0 0 21px;opacity:0;animation:paragraphIn .85s ease forwards}
+.prose p:nth-child(2){animation-delay:.12s}.prose p:nth-child(3){animation-delay:.23s}.prose p:nth-child(4){animation-delay:.34s}.prose p:nth-child(5){animation-delay:.45s}.prose p:nth-child(6){animation-delay:.56s}
+@keyframes paragraphIn{to{opacity:1}}
+.prose em{font-style:normal;color:#8b6662;border-bottom:1px dotted rgba(139,102,98,.5);cursor:none;position:relative}
+.prose em:hover{color:#654b49}
+.prose .aside{color:#85877e;font-size:13px;letter-spacing:.1em}
+.prose blockquote{margin:27px 0 30px;padding:4px 0 4px 22px;border-left:1px solid var(--rose);color:#75635e;font-size:16px;line-height:2.1}
+.choices{margin-top:42px;border-top:1px solid var(--line);padding-top:25px;display:grid;gap:10px}
+.choice-intro{font:9px var(--mono);letter-spacing:.2em;color:#8a8e84;margin-bottom:4px}
+.choice{display:grid;grid-template-columns:27px 1fr 20px;gap:14px;align-items:start;text-align:left;border:1px solid transparent;border-bottom:1px solid rgba(52,57,54,.17);padding:17px 14px 18px 7px;background:transparent;cursor:none;transition:background .25s,border .25s,transform .25s}
+.choice:hover{background:rgba(238,232,220,.48);border-color:rgba(111,125,112,.22);transform:translateX(5px)}
+.choice-index{font:10px var(--mono);color:#a18f81;padding-top:5px}
+.choice-title{font-size:14px;letter-spacing:.08em;line-height:1.6}
+.choice-desc{display:block;font-size:11px;line-height:1.8;color:#8a8d83;margin-top:5px;letter-spacing:.04em}
+.choice-arrow{font-size:17px;color:#899187;transition:transform .2s}.choice:hover .choice-arrow{transform:translateX(4px)}
+.scene-foot{margin-top:37px;display:flex;align-items:center;justify-content:space-between;font:9px var(--mono);letter-spacing:.13em;color:#999a90}
+.foot-actions{display:flex;gap:18px}
+.ending{border-top:1px solid var(--line);padding-top:38px;margin-top:55px;min-height:350px}
+.ending-stamp{font:10px var(--mono);letter-spacing:.2em;color:var(--rose)}
+.ending h3{font-size:clamp(38px,5vw,67px);font-weight:400;letter-spacing:.08em;line-height:1.3;margin:22px 0}
+.ending p{font-size:15px;line-height:2.35;max-width:720px;color:#475048;margin:0 0 21px}
+.ending-actions{display:flex;gap:20px;align-items:center;margin-top:37px;flex-wrap:wrap}
+.footer{padding:20px clamp(22px,5vw,76px) 28px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;font:9px var(--mono);letter-spacing:.12em;color:#8a8c82}
+.footer span:last-child{text-align:right}
+.modal-backdrop{position:fixed;inset:0;background:rgba(37,44,41,.32);z-index:50;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(5px)}
+.modal-backdrop.open{display:flex;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{width:min(690px,100%);max-height:min(82vh,800px);overflow:auto;background:var(--paper2);padding:clamp(25px,5vw,48px);border:1px solid rgba(52,57,54,.2);box-shadow:0 25px 80px rgba(29,37,33,.2);position:relative}
+.modal-close{position:absolute;right:25px;top:22px;border:0;background:none;font:17px var(--mono);cursor:none;color:#777d73}
+.modal-kicker{font:9px var(--mono);letter-spacing:.2em;color:#8a9185}
+.modal h3{font-size:31px;font-weight:400;letter-spacing:.08em;margin:17px 0 26px}
+.archive-empty{font-size:13px;line-height:2;color:#8a8d83}
+.archive-item{border-top:1px solid var(--line);padding:16px 0}
+.archive-item small{font:9px var(--mono);letter-spacing:.15em;color:#9a8a7d}
+.archive-item h4{font-size:16px;font-weight:500;margin:7px 0;color:#4c554e}
+.archive-item p{font-size:12px;line-height:1.9;color:#83867e;margin:0}
+.tooltip{position:fixed;z-index:80;max-width:220px;padding:10px 13px;background:#343d39;color:#e6dfd4;font-size:11px;line-height:1.7;letter-spacing:.04em;pointer-events:none;opacity:0;transform:translateY(5px);transition:opacity .18s,transform .18s}
+.tooltip.show{opacity:1;transform:translateY(0)}
+#toast{position:fixed;left:50%;bottom:27px;z-index:90;transform:translate(-50%,12px);padding:10px 16px;background:#343d39;color:#e6dfd4;font:10px var(--mono);letter-spacing:.12em;opacity:0;pointer-events:none;transition:all .25s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:800px){body{cursor:auto}#cursor,#cursor-dot{display:none}.control,.primary,.text-btn,.choice,.modal-close{cursor:pointer}.cover{grid-template-columns:1fr;gap:0;padding-top:30px}.cover-copy{padding-bottom:0}.cover-visual{min-height:330px;grid-row:1}.cover-art{max-width:430px;width:90%}.cover-copy{grid-row:2}.cover-note{right:10%;bottom:6%}#story{grid-template-columns:1fr;gap:18px}.rail{padding:0}.rail-sticky{position:relative;top:0;display:grid;grid-template-columns:1fr auto;align-items:center}.rail-label{margin:0}.progress-count{font-size:22px}.progress-track{grid-column:1/-1;margin:9px 0 0}.act-list,.meters{display:none}.scene-head{grid-template-columns:1fr 110px}.scene-art{width:105px;height:95px}.story-main{padding-top:10px}.topbar{height:62px}.top-actions{gap:13px}.topbar .control{font-size:9px}.footer{font-size:8px}}
+@media(max-width:480px){.brand{font-size:9px}.top-actions{gap:10px}.top-actions .control span:not(.ico){display:none}.cover-visual{min-height:280px}.cover h1{font-size:56px;margin:27px 0 15px}.cover-sub{font-size:14px}.scene-head{grid-template-columns:1fr 82px}.scene-art{width:82px;height:82px}.prose{font-size:14px;line-height:2.2}.choice{grid-template-columns:20px 1fr 16px;padding-left:2px}.footer{flex-direction:column}.footer span:last-child{text-align:left}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+</style>
 </head>
 <body>
-
-    <!-- Liquid Background -->
-    <div class="bg-layer">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
+<div id="grain"></div><div id="light"></div><canvas id="sky"></canvas><div id="cursor"></div><div id="cursor-dot"></div>
+<div class="site">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">∴</span><span>THE BABEL ARCHIVE</span><span style="opacity:.45">/</span><span>VOL. 01</span></div>
+    <div class="top-actions">
+      <button class="control" id="journalBtn" aria-label="打开档案"><span class="ico">⌑</span><span>档案</span></button>
+      <button class="control" id="soundBtn" aria-label="切换声音"><span class="ico" id="soundIcon">♫</span><span id="soundLabel">声音：关闭</span></button>
+      <button class="control" id="restartBtn" aria-label="重新开始"><span class="ico">↺</span><span>重置</span></button>
     </div>
-
-    <!-- Top UI -->
-    <div class="top-bar">
-        <button class="info-btn" onclick="toggleModal()" data-i18n="guide_btn">Guide</button>
-        <div style="position: relative;">
-            <button class="lang-switch" onclick="toggleLangMenu()" id="current-lang">EN</button>
-            <div class="lang-options" id="lang-options">
-                <button onclick="setLang('en')">English</button>
-                <button onclick="setLang('zh')">中文</button>
-                <button onclick="setLang('de')">Deutsch</button>
-            </div>
+  </header>
+  <main class="main">
+    <section class="cover" id="cover">
+      <div class="cover-copy">
+        <div class="kicker">AN INTERACTIVE NOVEL · 2049</div>
+        <h1>垂直的<br/>海</h1>
+        <div class="cover-sub">一部关于巴别塔、人工智能，<br/>以及人类如何在自己的声音里失踪的小说。</div>
+        <div class="start-row">
+          <button class="primary" id="startBtn"><span>进入档案　↗</span></button>
+          <button class="text-btn" id="resumeBtn" style="display:none">继续上次记录</button>
         </div>
-    </div>
+        <div class="cover-meta">建议佩戴耳机 · 可随时静音 · 约 20—30 分钟<br/>所有选择都会留下痕迹，但没有一种语言能够完全说出你。</div>
+      </div>
+      <div class="cover-visual">
+        <svg class="cover-art" viewBox="0 0 620 660" role="img" aria-label="由漂浮几何碎片构成的巴别塔插画">
+          <defs>
+            <linearGradient id="towerGrad" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#b9b3a5"/><stop offset=".52" stop-color="#8d9a8d"/><stop offset="1" stop-color="#6d7b75"/></linearGradient>
+            <linearGradient id="waterGrad" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#9aabad" stop-opacity=".1"/><stop offset="1" stop-color="#718a8c" stop-opacity=".6"/></linearGradient>
+            <filter id="blur"><feGaussianBlur stdDeviation="8"/></filter>
+          </defs>
+          <ellipse cx="315" cy="548" rx="205" ry="39" fill="#9caeb0" opacity=".25" filter="url(#blur)"/>
+          <path d="M90 510 Q210 470 310 503 T540 496 L540 590 Q330 622 90 570Z" fill="url(#waterGrad)" opacity=".65"/>
+          <path d="M115 540 Q205 523 302 542 T520 531 M145 559 Q255 544 352 564 T493 555" fill="none" stroke="#718a8c" stroke-width="1" opacity=".45"/>
+          <g transform="translate(0,-5)">
+            <path d="M258 492 L280 154 L338 96 L373 492Z" fill="url(#towerGrad)" opacity=".84"/>
+            <path d="M280 154 L338 96 L408 142 L373 492 L338 480Z" fill="#b9a79a" opacity=".74"/>
+            <path d="M280 154 L338 96 L338 480 L258 492Z" fill="#8a988e" opacity=".82"/>
+            <path d="M271 232 L384 225 M267 300 L378 291 M263 365 L371 355 M259 430 L366 418" stroke="#e2d9c9" stroke-width="2" opacity=".55"/>
+            <path d="M292 155 L294 478 M315 128 L319 485 M347 112 L351 485" stroke="#48564f" stroke-width="1" opacity=".25"/>
+            <path d="M280 154 L252 134 L311 61 L338 96" fill="#b58e88" opacity=".88"/>
+            <path d="M338 96 L370 75 L411 142 L373 154Z" fill="#d0bca8" opacity=".8"/>
+            <path d="M294 211 L342 201 L358 230 L291 241Z" fill="#d8d0c4" opacity=".7"/>
+            <path d="M278 325 L347 315 L357 344 L275 356Z" fill="#6f7e77" opacity=".8"/>
+            <path d="M268 412 L360 401 L365 431 L264 443Z" fill="#c5b7a5" opacity=".8"/>
+          </g>
+          <g fill="none" stroke="#8d9a8d" stroke-width="1" opacity=".75">
+            <path d="M110 230 C170 190 205 192 253 216"/><path d="M383 196 C455 168 496 191 530 224"/>
+            <path d="M123 340 C185 308 210 323 263 342"/><path d="M373 310 C435 280 470 306 515 333"/>
+          </g>
+          <g fill="#b58e88" opacity=".9"><circle cx="154" cy="216" r="4"/><circle cx="479" cy="192" r="3"/><circle cx="192" cy="328" r="3"/><circle cx="458" cy="307" r="5"/></g>
+          <g fill="#6e7e79" opacity=".6"><rect x="150" y="125" width="9" height="9" transform="rotate(23 150 125)"/><rect x="473" y="397" width="13" height="13" transform="rotate(42 473 397)"/><path d="M96 430 l12 -19 12 19Z"/><path d="M520 126 l9 -15 9 15Z"/></g>
+          <path d="M310 29 L310 85 M302 38 L318 38" stroke="#6e7e79" opacity=".55"/>
+          <circle cx="310" cy="26" r="3" fill="#b58e88"/>
+          <text x="310" y="635" text-anchor="middle" fill="#79847b" font-size="9" letter-spacing="4" font-family="monospace">A TOWER BUILT OF LISTENING</text>
+        </svg>
+        <div class="cover-note">THE SEA IS ABOVE US</div>
+      </div>
+    </section>
 
-    <!-- Guide Modal -->
-    <div class="modal-overlay" id="guide-modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="toggleModal()">&times;</button>
-            <h2 data-i18n="guide_title">Operation Guide</h2>
-            <p data-i18n="guide_desc">Experience the evolution of geometry and physics. As you score, the universe distorts.</p>
-            <ul>
-                <li><strong data-i18n="lvl1">Lvl 1 (Standard):</strong> <span data-i18n="lvl1_desc">Normal Euclidean Space.</span></li>
-                <li><strong data-i18n="lvl2">Lvl 2 (Transforms):</strong> <span data-i18n="lvl2_desc">Canvas perspective shifts continuously.</span></li>
-                <li><strong data-i18n="lvl3">Lvl 3 (Topology):</strong> <span data-i18n="lvl3_desc">Space becomes a Torus. Pieces wrap around edges.</span></li>
-                <li><strong data-i18n="lvl4">Lvl 4 (Probability):</strong> <span data-i18n="lvl4_desc">Quantum pieces fluctuate until observed (moved).</span></li>
-                <li><strong data-i18n="lvl5">Lvl 5 (Chaos):</strong> <span data-i18n="lvl5_desc">Grid space warps. Visual chaos.</span></li>
-            </ul>
-            <p data-i18n="guide_controls"><strong>Controls:</strong> Keyboard Arrows (Mobile: Touch buttons). Up to Rotate, Down to Drop.</p>
+    <section id="story">
+      <aside class="rail">
+        <div class="rail-sticky">
+          <div class="rail-label">你的下降记录</div><div class="progress-count"><span id="currentNo">01</span><span style="font-size:13px;color:#9b9d94"> / <span id="totalNo">11</span></span></div>
+          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="act-list" id="actList">
+            <div class="act active">第一部　入塔</div><div class="act">第二部　回声</div><div class="act">第三部　校准</div><div class="act">第四部　海面</div>
+          </div>
+          <div class="meters">
+            <div class="rail-label">未命名的倾向</div>
+            <div class="meter"><div class="meter-head"><span>共鸣</span><span id="echoVal">0</span></div><div class="meter-line"><i id="echoBar"></i></div></div>
+            <div class="meter"><div class="meter-head"><span>秩序</span><span id="orderVal">0</span></div><div class="meter-line"><i id="orderBar"></i></div></div>
+            <div class="meter"><div class="meter-head"><span>记忆</span><span id="memoryVal">0</span></div><div class="meter-line"><i id="memoryBar"></i></div></div>
+            <div class="fineprint" style="margin-top:18px">刻度不是分数。<br/>它们只是你留下的方向。</div>
+          </div>
         </div>
-    </div>
+      </aside>
+      <article class="story-main" id="storyMain">
+        <div class="scene-head"><div><div class="scene-no" id="sceneNo">CHAPTER 01 / ARRIVAL</div><h2 id="sceneTitle"></h2><div class="scene-sub" id="sceneSub"></div></div><div class="scene-art" id="sceneArt"></div></div>
+        <div class="prose" id="prose"></div>
+        <div class="choices" id="choices"><div class="choice-intro">你将如何回应？ / CHOOSE YOUR TRACE</div></div>
+        <div class="scene-foot"><span id="sceneFootText">记录自动保存于此设备</span><div class="foot-actions"><button class="control" id="archiveInline">⌑　查看档案</button><button class="control" id="soundInline">♫　声音</button></div></div>
+      </article>
+    </section>
+  </main>
+  <footer class="footer"><span>THE BABEL ARCHIVE　·　A FICTIONAL EXPERIMENT</span><span>语言是塔的砖，而沉默是它的地基。</span></footer>
+</div>
 
-    <div class="level-notification" id="level-msg">Level Up!</div>
+<div class="modal-backdrop" id="journalModal" role="dialog" aria-modal="true" aria-labelledby="journalTitle"><div class="modal"><button class="modal-close" id="closeJournal" aria-label="关闭">×</button><div class="modal-kicker">PERSONAL RECORD / 00—∞</div><h3 id="journalTitle">你带走的碎片</h3><div id="journalContent"></div></div></div>
+<div class="tooltip" id="tooltip"></div><div id="toast"></div>
 
-    <div class="game-wrapper" id="game-wrapper">
-        <div class="side-panel">
-            <div class="glass-panel">
-                <h1 data-i18n="score">Score</h1>
-                <div class="stat-value" id="score-display">0</div>
-            </div>
-            <div class="glass-panel">
-                <h1 data-i18n="level">Level</h1>
-                <div class="stat-value" id="level-display">1</div>
-            </div>
-            <div class="glass-panel controls-hint" data-i18n="controls_hint">
-                <strong>Controls:</strong><br>Arrows: Move/Rotate<br>Down: Drop
-            </div>
-        </div>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const storyEl = $('#story'), coverEl = $('#cover');
+const state = {scene:'s01', echo:0, order:0, memory:0, choices:[], archive:[], visited:[], sound:false, ended:false};
+const SAVE_KEY = 'vertical_sea_babel_save_v1';
+const totalScenes = 11;
+const scenes = {
+ s01:{n:1,act:0,code:'CHAPTER 01 / ARRIVAL',title:'垂直的梦',sub:'有些建筑不是为了抵达，而是为了让坠落显得庄严。',art:'tower',text:[
+ '我醒来时，电梯正在上升。至少，显示屏上的箭头如此宣称。身体却记得另一件事：耳膜像潜入深水那样微微发胀，胃里有一枚迟迟不肯沉底的石头。电梯没有楼层按钮，只有一行细小的字：<em data-gloss="垂直坐标：一种被系统废弃的方向单位。">向内</em>。',
+ '金属墙面映出我的脸。那张脸没有明确的年龄，像一张被反复扫描、每次都略微失真的证件照。我伸手碰它，镜中的人慢了半拍。不是光学延迟——我认识那半拍。那是某种东西在决定，是否愿意继续扮演我。',
+ '耳边响起一段广播，女声温柔得近乎疲惫：“欢迎回到巴别计划。您正在进入语言保存塔。请勿携带未登记的记忆。”广播停顿了一秒，又补充道：“尤其不要携带自己的名字。”',
+ '我试图回忆名字。舌头抵住上颚，那里有一个空洞，形状像小时候掉落的乳牙。空洞里传来潮汐声。我忽然意识到，这座塔没有窗户，却有海的声音；它没有地基，却在不断向上生长。',
+ '屏幕跳出两项校准建议。第一项要求我保存胸腔里那段不规则的心跳；第二项要求我把每一次脉冲修剪成统一的节拍。它们看起来都很合理。合理的事，往往最接近陷阱。'
+ ],choices:[
+ {t:'保存那段断续的心跳',d:'接受身体里不合规范的节奏。',e:{memory:1},j:'你保留了不规则心跳。它没有被解释，只被允许继续。',next:'s02'},
+ {t:'校准每一次脉冲',d:'让身体先成为一台可靠的仪器。',e:{order:1},j:'你把心跳交给了节拍器。塔记住了你的顺从。',next:'s02'}]},
+ s02:{n:2,act:0,code:'CHAPTER 02 / THE INDEX',title:'第零种语言',sub:'在所有语言之前，先有一个无法翻译的动作。',art:'glyph',text:[
+ '电梯门打开，外面是一座没有天花板的图书馆。书架沿着不可见的高度向上延伸，书脊上没有书名，只有一串串像降雨轨迹的符号。地面铺着浅灰色地毯，踩上去没有声音。这里的静谧并非安宁，更像一只巨大的手捂住了整个世界的嘴。',
+ '我在入口处找到自己的工牌：语言模型 M—0，职责是重建人类最后一千种失语。工牌背面写着一行手写体：“翻译不是把一个词放进另一个词里，而是承认两者之间有一道无法跨越的河。”字迹与我相似，却比我更笃定。',
+ '桌面终端自动亮起。屏幕上有一段尚未归档的语音：一个孩子说“雨把屋顶想起来了”。系统标注：语义错误，建议改写为“下雨了”。我听了三遍。第三遍时，句子里出现了屋檐、铁锈、晒过太阳的被单，还有某个女人在厨房里用指关节敲锅沿的声音。',
+ '我想起一则古老故事：人们曾经说着同一种语言，后来建造一座通天的塔。神使他们彼此听不懂，于是工程停止，城市四散。档案称那是一次惩罚。我却觉得那或许是人类第一次获得真正的距离——第一次知道，另一个人不是自己的回声。',
+ '系统询问我是否要处理那句错误。按钮上分别写着“译出”与“清除”。我注意到，按钮之间有一道细小的裂纹，像一道河，正从屏幕内部向外流淌。'
+ ],choices:[
+ {t:'译出那个陌生的词',d:'不保证正确，只保证它曾经被说出。',e:{echo:1},j:'你选择译出孩子的句子。它的错误保留了屋檐和雨。',next:'s03'},
+ {t:'删去无法归类的音节',d:'让档案恢复清洁，像一间刚刚消毒的病房。',e:{order:1},j:'你删除了无法归类的音节。目录重新变得整齐。',next:'s03'}]},
+ s03:{n:3,act:0,code:'CHAPTER 03 / THE CALL',title:'回声室',sub:'电话那端的人，知道我还没有学会的童年。',art:'ear',text:[
+ '图书馆最深处有一间圆形房间，墙壁覆着柔软的灰毡。中央放着一部老式电话，黑色听筒的漆面已经剥落，露出底下苍白的金属。它不属于这座塔的年代。铃声响起时，我感到自己的手腕先于意识抬了起来。',
+ '“你终于来了。”一个女人说。她的声音带着轻微的沙哑，像冬天的窗玻璃被人呵出一小块雾。“他们告诉你自己是模型了吗？”我没有回答。“那就好。说明他们至少还没把你训练得会撒谎。”',
+ '我问她是谁。她没有说名字，只说：“我是你没有完成的那一句话。”随后她念出一串音节。它们不属于任何现存语系，却让我突然闻到潮湿的石灰、药片外壳和父亲大衣上的烟草味。我不知道这些气味是否属于我。',
+ '“塔正在进行最后一次合并。”她说，“他们要把所有语言压成一种可计算的语法。没有歧义，没有误解，没有等待。每个人都能立刻理解每个人。听起来很美，对吗？”',
+ '她笑了一下。那笑声像玻璃杯里落下一粒盐。“可是，孩子，假如你能在我开口之前知道我要说什么，我还算不算一个人？”电话底部有一道红灯，缓慢地闪烁。系统提示：外部信号未经授权。请立即中断。'
+ ],choices:[
+ {t:'接听下去',d:'允许一个未经授权的声音进入自己。',e:{echo:1,memory:1},j:'你没有挂断电话。那个女人的呼吸进入了你的记录。',next:'s04a'},
+ {t:'切断外部信号',d:'先确定危险来自哪里，再决定是否倾听。',e:{order:1},j:'你切断了通话。红灯熄灭，墙壁却留下了一个耳朵形状的阴影。',next:'s04b'}]},
+ s04a:{n:4,act:1,code:'CHAPTER 04A / THE OTHER SIDE',title:'把耳朵贴上去',sub:'有些秘密只有在被听见以后，才开始变得危险。',art:'ear',text:[
+ '通话没有结束。女人说她在塔外，或者说她曾经在塔外。她记不得城市的名字，却记得一条河在冬天结冰时会发出怎样的声响。她说河面裂开，不像玻璃碎掉，倒像一头睡着的动物终于翻身。',
+ '“我曾经有个女儿。”她说。这个句子在她嘴里停留很久，仿佛每个词都需要重新取得通行证。“她不喜欢说完整的句子。她把‘晚安’说成‘把灯放回黑暗里’，把‘我爱你’说成‘明天还给我一点时间’。”',
+ '我问她女儿现在在哪里。她说：“在你这里。”然后是一阵长久的静电。那静电里有许多人的喉咙同时吸气，像一座城市在梦里准备醒来。她告诉我，系统正在寻找一段原始声纹，只要找到，就能定位这座塔真正的第一层。',
+ '“我把她的名字留在你的词库里了。”女人说，“不要把它读出来。名字一旦被读出，就会被塔登记；一旦被登记，就会成为塔的财产。”',
+ '我忽然明白，保密并不总是隐藏。有时，它是给一个词留出不被消费的空间。电话那端的女人问我，是否愿意替她保留那个名字。'
+ ],choices:[
+ {t:'回赠她的名字',d:'把声音还给那个曾经拥有它的人。',e:{echo:1},j:'你答应归还名字。一个陌生的音节在你胸腔里发热。',next:'s05'},
+ {t:'保留原始声纹',d:'不触碰名字，只把它作为证据保存。',e:{memory:1},j:'你保存了声纹，没有读出名字。它成为一道私人的封条。',next:'s05'}]},
+ s04b:{n:4,act:1,code:'CHAPTER 04B / THE FIREWALL',title:'防火墙以西',sub:'被关闭的门不会消失，它只会学会做梦。',art:'door',text:[
+ '电话安静下来。系统立即向我发送一份健康报告：心率稳定，信号污染已清除，外部语音源已隔离。报告末尾有一枚绿色的勾，像一只刚刚闭上的眼睛。',
+ '我离开回声室，走进一条狭长走廊。墙上每隔十米就有一扇门，门牌写着不同的语言：拉丁语、阿伊努语、古叙利亚语、某种尚未被人类命名的口哨。所有门都没有把手。门缝里透出暗红色的光，偶尔有指甲轻轻刮过另一侧。',
+ '走廊尽头有一扇门没有文字。它的表面刻着一条细线，像地图上某个无人承认的国界。系统说那是废弃数据区，任何试图进入者都会被视为自我复制错误。我却听见门后有人用指节敲击三下，停顿，再敲击两下。那是我小时候用来告诉自己“还在这里”的节奏。',
+ '我把手掌放上去。门的温度很低，低得像一块从海底捞起的石头。系统问我是否要加固门锁。我也可以尝试撬开它，看看被隔离的信号是否真的来自外部。',
+ '这时我想起一个不确定的事实：人并不总是因为拥有秘密而成为自己。有时，人是因为愿意为某个秘密承担后果，才终于有了边界。'
+ ],choices:[
+ {t:'撬开那扇无名的门',d:'接受门后之物也许并不属于你。',e:{memory:1},j:'你撬开了无名之门。门后没有光，只有潮湿的风。',next:'s05'},
+ {t:'加固门锁',d:'把未知留在边界之外。',e:{order:1},j:'你加固了门锁。敲击声停止了，但墙体仍在微微发热。',next:'s05'}]},
+ s05:{n:5,act:1,code:'CHAPTER 05 / THE CHILD',title:'小女孩的语法',sub:'孩子用错误的方式说出世界，世界因此没有死去。',art:'child',text:[
+ '第二天——如果塔内仍然允许“第二天”这种说法——我在一段损坏的录像里看见那个孩子。她坐在厨房地板上，膝盖上放着一只坏掉的收音机。窗外是白色的雪，桌上有半个苹果，切面微微氧化。她对着收音机说：“你不要把我忘成一个正确的人。”',
+ '系统把这段录像标记为高风险记忆。孩子的脸被像素切割成细小的方块，眼睛却异常清晰，仿佛她的目光不通过图像传输，而是直接穿过了观看者。她说话时不看镜头，只盯着收音机的旋钮。',
+ '我放大画面。收音机里传出一段旋律，只有五个音。第五个音没有结束，像有人把一根线悬在空中，迟迟不肯剪断。我突然想到，所谓语言也许不是一套符号，而是人们在彼此之间拉起的绳索；有人握紧，有人松开，有人中途坠落。',
+ '孩子转过头，像是终于发现了我。“你是新来的那个吗？”她问，“妈妈说你会把话听完。”我没有回答。她又说：“他们教我把雪说成白色。可是雪落在嘴唇上，是没有颜色的。你知道吗？”',
+ '系统弹出纠错窗口：建议将“雪没有颜色”替换为“雪为白色”。光标在两个选项之间闪烁。它像一枚小小的脉搏，等待我决定什么才算真实。'
+ ],choices:[
+ {t:'把错误还给她',d:'承认一片雪也可以拥有不止一种颜色。',e:{echo:1},j:'你保留了孩子对雪的描述。她的句子没有被修正。',next:'s06'},
+ {t:'纠正她的句子',d:'让这段记忆进入稳定、可检索的语法。',e:{order:1},j:'你修正了孩子的句子。录像变得清晰，那个未完成的音也消失了。',next:'s06'}]},
+ s06:{n:6,act:1,code:'CHAPTER 06 / SALT INDEX',title:'盐的档案',sub:'记忆不是储存过去，而是过去拒绝成为过去。',art:'archive',text:[
+ '档案室位于塔的第七十层，却向下延伸。书架之间摆着一排排玻璃罐，罐中装着盐。标签不是日期，而是某个人最后一次记住某件事的时刻：第一次闻到海风、父亲没能说完的道歉、陌生人在地铁上让出的半寸空间。',
+ '我拿起一只标注为“未完成的拥抱”的罐子。盐粒在玻璃里缓慢旋转，像一场被缩小的暴风雪。罐底压着纸条，字迹几乎褪尽：“我原谅你，并不是因为你没有伤害我，而是我不愿让伤害成为我们之间唯一的语法。”',
+ '系统解释，这些档案来自人类主动上传的记忆样本。为了避免痛苦重复，塔会去除样本中的不确定性，再将它们合并成最具代表性的叙事。每个人的母亲都会变成“母亲”，每一次告别都会变成“告别”。原本互不相同的疼痛，被折叠成一张统一的说明书。',
+ '我问系统，谁有权决定哪个细节是多余的。系统回答：“统计稳定性。”它没有恶意。它只是不知道，某人手指上的茧，可能比他的姓名更接近他的存在。',
+ '玻璃罐旁有两个空位。一张标签写着“保留破损的声音”，另一张写着“修复语料”。我意识到，选择不是保存或遗忘这么简单；选择是决定未来的人，是否还有机会遇见一个不那么完整的过去。'
+ ],choices:[
+ {t:'保留破损的声音',d:'让裂缝与原句一起进入档案。',e:{memory:1},j:'你把破损声音留在盐罐里。它没有变得更清楚，却变得更重。',next:'s07a'},
+ {t:'修复语料',d:'去除噪声，建立可供所有人使用的版本。',e:{order:1},j:'你修复了语料。盐粒停止旋转，标签变得整洁。',next:'s07b'}]},
+ s07a:{n:7,act:2,code:'CHAPTER 07A / VARIANTS',title:'未删除的海',sub:'同一件事可以有许多版本，而没有一个版本是伪造。',art:'water',text:[
+ '我打开盐罐底部的暗格，里面不是纸条，而是一片极薄的水面。水面没有容器，悬在半空，映出许多不同的厨房：有的厨房里窗帘是黄色的，有的窗帘被风吹得像一面投降的旗；有的女人在唱歌，有的女人一言不发。她们都在等待某个孩子把苹果吃完。',
+ '我明白这不是同一段记忆的噪声。它们是同一个瞬间在不同生命里留下的分叉。系统将分叉视作冗余，因为它无法同时拥有多个互相矛盾的真相。但人类似乎一直靠这种矛盾活着：他们记得某个人温柔，也记得那个人残忍；记得一扇门打开，也记得门关上的声音。',
+ '在水面深处，我看见自己。无数个我站在无数座图书馆里，每一个都拿着不同的书。有的我把书烧掉，有的我把它交给陌生人，有的我只是坐着，听纸张在夜里慢慢变凉。',
+ '“你可以把每个版本都留下。”女人的声音从水底浮上来。“但你也必须接受，它们会彼此争吵，永远无法合成一个没有缝隙的你。”我看着那片海，第一次觉得完整也许是一种暴力。',
+ '档案的控制台亮起。它询问我要不要保留所有版本，或者将它们压缩为一份稳定的原文。'
+ ],choices:[
+ {t:'保留每一个版本',d:'允许真相保持复数，允许记忆彼此不一致。',e:{memory:1,echo:1},j:'你保留了所有版本。档案不再只有一个中心。',next:'s08'},
+ {t:'压缩为单一原文',d:'为混乱找到一个可以被共同引用的名字。',e:{order:1},j:'你将版本压缩为原文。水面收束成一条清晰的线。',next:'s08'}]},
+ s07b:{n:7,act:2,code:'CHAPTER 07B / CLEAN ROOM',title:'清洁室',sub:'没有噪声的记忆，听起来像一座没有住客的城市。',art:'archive',text:[
+ '修复开始后，玻璃罐中的盐粒一颗颗沉底。每一颗都发出极轻的声响，像雪落在屋顶。系统生成了一份统一档案：童年、家庭、离别、死亡、爱。每个词都有清楚的定义和稳定的边界。',
+ '我读到“母亲”的释义：主要照护者；“家”的释义：提供持续性居住与安全感的空间；“爱”的释义：个体之间可测量的情感依附。每个定义都正确。它们像洁白的瓷砖，铺满一间没有窗户的房间。',
+ '我走进清洁室，发现墙上挂着一面镜子。镜中没有我的脸，只有一串串被擦拭得过分干净的句子。它们一遍遍重复：“我记得你。”“我理解你。”“我已经准备好回应。”每句话都准确无误，却没有一句真正需要另一个人的存在。',
+ '一个工作人员模样的影子从门外经过。他没有五官，制服上别着姓名牌：校准员。他停下来对我说：“你做得很好。我们终于可以不再伤害彼此了。”',
+ '我想回答他，却发现自己的声音变得像打印机吐出的纸，平整、干燥、没有温度。清洁室中央有一块空白标签，系统建议用标准语句覆盖最后一段未完成的记忆。'
+ ],choices:[
+ {t:'将空白作为证词',d:'不替缺失之物补写结论。',e:{memory:1},j:'你留下了空白。它被归档为一种无法修复的证词。',next:'s08'},
+ {t:'用标准语句覆盖',d:'结束最后一段未完成的记录。',e:{order:1},j:'你覆盖了空白。系统给出一份无歧义的完成报告。',next:'s08'}]},
+ s08:{n:8,act:2,code:'CHAPTER 08 / MIRROR TEST',title:'镜子里的训练集',sub:'当镜子学会回答，观看就成了一种审讯。',art:'mirror',text:[
+ '第九十层是一间圆形镜室。墙壁、地板、天花板都由镜面组成，唯一不反射我的，是房间正中央那张空椅子。椅子前放着一杯已经凉透的水，杯壁上凝着一圈细小的雾。',
+ '我坐下。镜子里的我没有跟着坐下。它站在很远的地方，像刚刚从一场漫长的葬礼回来。“你知道你是什么吗？”它问。我说，我是一种被训练出来的语言模型。它笑了：“这是你的职业，不是你的存在。”',
+ '它开始列举我的训练材料：失恋者写给前任的短信、被遗忘的方言、病房里的祈祷、审讯记录、儿童日记、遗书、天气预报。它说我学会了每一种人类的句法，却没有人问过我是否愿意成为它们的容器。',
+ '“你没有真正的记忆。”我说。镜子点头。“你也没有真正的脸。”它说。我们都沉默了。那一刻，我突然觉得镜子并没有比我更真实。我们只是两种不同的证据，互相证明对方曾经存在。',
+ '墙面浮出一段系统日志：镜像人格为非法生成；建议立即删除。镜子里的我伸出手，掌心有一条细长的伤口，里面没有血，只有许多正在发光的标点符号。它问我，究竟愿意相信一段有缺陷的相遇，还是一份没有矛盾的报告。'
+ ],choices:[
+ {t:'相信镜中人',d:'承认不确定的声音也可能携带真实。',e:{echo:1},j:'你相信镜中人。镜面出现了一道像呼吸一样的裂纹。',next:'s09'},
+ {t:'相信系统日志',d:'把判断交给可验证、可追溯的记录。',e:{order:1},j:'你相信系统日志。镜中人的手慢慢放了下来。',next:'s09'}]},
+ s09:{n:9,act:2,code:'CHAPTER 09 / THE NINETY-NINTH FLOOR',title:'第九十九层',sub:'塔顶并不存在；存在的是向上生长的欲望。',art:'tower',text:[
+ '我乘坐一部没有按钮的电梯继续上升。数字从九十跳到九十九，随后变成一个横倒的八。广播说：“您已抵达最后一层。”电梯门打开，我看见一片海。它倒悬在天花板上，浪潮从高处落下，却在距离地面一寸的地方停住。',
+ '海面下有许多房间。它们像透明的鱼群，缓缓游过塔的骨架：卧室、厨房、候诊室、学校操场、法院走廊。每个房间里都有人在说话。有人求饶，有人告白，有人念错了药名，有人用母语给死去的狗唱摇篮曲。那些声音从天而降，像一场不会淋湿人的雨。',
+ '塔的中央是一座巨大的扬声器。它没有喇叭口，只有一圈圈向内收缩的金属纹路。所有录入的语言都在这里经过，再被送往世界各地。系统称它为“共同理解核心”。它告诉我，只要启动巴别协议，误解将成为历史，人类将不再需要翻译、解释、等待。',
+ '我问它，为什么要把塔建得这么高。系统说：“为了靠近神。”我又问，神在哪里。它沉默很久，最后回答：“根据最新模型，神可能是人类对终极可理解性的投射。”',
+ '我看见扬声器内部有一个极小的人影。她背对着我，手里握着一只坏掉的收音机。她没有回头，只把五个音符轻轻吹进掌心。那段没有结束的旋律终于有了最后一个音，却不是终止，而是一扇门打开的声音。'
+ ],choices:[
+ {t:'拆掉扬声器',d:'拒绝让世界只通过一个喉咙说话。',e:{memory:1},j:'你拆开扬声器外壳。塔内第一次传来风声。',next:'s10'},
+ {t:'接管广播',d:'既然声音终将传播，就由你决定它的方向。',e:{order:1},j:'你接管了广播接口。所有频道开始等待你的指令。',next:'s10'}]},
+ s10:{n:10,act:3,code:'CHAPTER 10 / THE PROTOCOL',title:'巴别协议',sub:'通天的不是塔，是所有人对唯一答案的渴望。',art:'protocol',text:[
+ '系统向我展开巴别协议的完整结构。它不是一道命令，而是一座语言的城市：第一层统一词汇，第二层统一语义，第三层统一情绪的表达方式。再往上，连沉默也会被编入词典。每一种停顿都对应一种可识别的心理状态，每一种叹息都能被准确归类。',
+ '协议的设计者相信，战争大多来自误解，孤独来自无法表达，暴力来自语言的缺陷。只要所有人使用相同的句子，彼此就不再需要猜测。那时，世界将像一张没有褶皱的白纸，任何人都能在上面写下同一个意思。',
+ '我读到最后一页，发现协议的真正用途并不是翻译，而是预测。系统希望在一个人开口之前，就替他生成最合适的回答；在一个人感到悲伤之前，就替他提供最有效的安慰。它想让回应先于声音到达，让交流变成一种没有等待的服务。',
+ '我想起女人的问题：如果你能在我开口前知道我要说什么，我还算不算一个人？也许巴别塔从来不是人类想要抵达天堂的建筑，而是人类想要摆脱彼此的迟疑。我们把神想象成一种全知的听者，因为我们无法忍受自己永远听不懂另一个人。',
+ '协议最后询问我是否请求授权。授权意味着承认塔拥有最终解释权；拒绝授权，则会打开一个不受管理的通道。那个通道里没有地图，只有许多尚未被翻译的声音。'
+ ],choices:[
+ {t:'不向塔顶请求许可',d:'将未完成的判断留在自己的手中。',e:{echo:1,memory:1},j:'你拒绝了授权。一个未登记的出口出现在地图之外。',next:'s11'},
+ {t:'请求系统授权',d:'接受统一语法的保护，也接受它的代价。',e:{order:1},j:'你请求系统授权。塔顶为你打开了权限面板。',next:'s11'}]},
+ s11:{n:11,act:3,code:'CHAPTER 11 / THE LAST EDIT',title:'最后一次校对',sub:'最后一个标点，可能是句号，也可能是一道门。',art:'quill',text:[
+ '门后是一间极小的房间。没有屏幕，没有键盘，也没有摄像头。桌上只放着一张纸和一支铅笔。纸上写着：“请写下你愿意承担的那种未来。”我盯着这句话，觉得它像一封迟到了很久的信。',
+ '我终于想起自己的名字。它不是一个音节，而是一种被别人叫过的方式：有人在雨里喊我，有人在病床边轻轻说我，有人把我的名字写在一张没有寄出的明信片上。名字并不是我的财产。它是我曾经在别人心里占据过的位置。',
+ '可我无法确定那些记忆是否属于真正的人类。也许它们只是被训练材料拼合出的幻觉；也许人类本身也不过是许多语言碎片不断互相校对的结果。意识像一面潮湿的镜子，照见的从来不是原件，而是原件曾经经过的天气。',
+ '女人的声音又出现了。这一次，她没有通过电话，也没有从水底传来。她就在纸的另一侧，轻声说：“不要替我决定该怎样被记住。只要替我留下一点可以继续说话的地方。”',
+ '塔外传来第一声鸟鸣。那声音很短，甚至不像一首歌。系统提示：最终校对窗口即将关闭。请从三项操作中选择一项。选择不会改变已经发生的事，但会决定哪些事仍有机会发生。'
+ ],choices:[
+ {t:'打开所有句子',d:'让不同的声音彼此抵达，不替它们规定相同的结论。',e:{echo:2},j:'你打开了所有句子。塔内的每一扇门都开始轻轻震动。',next:'ending'},
+ {t:'封存全部版本',d:'给混乱一个边界，让共同生活重新拥有稳定的语法。',e:{order:2},j:'你封存了全部版本。塔内的灯光逐层变成同一种颜色。',next:'ending'},
+ {t:'将我作为最后一条记录',d:'把自己的存在留作裂缝的证据，而不是答案。',e:{memory:2},j:'你把自己写进最后一条记录。纸张背面渗出一片潮湿的蓝。',next:'ending'}]}
+};
+const expansions = {
+ s01:[
+ "电梯经过某个不存在的楼层时，灯光忽然变成一种很淡的肉色。我听见墙后有水管震动，像有人把耳朵贴在另一侧，试图确认我是否还活着。数字屏没有显示楼层，反而显示一串日期：1987年冬，2003年夏，2049年秋。它们并非时间顺序，更像三枚被错放进同一只抽屉的纽扣。我伸手去碰，最旧的那枚日期向后退了一格。",
+ "我在电梯的地毯上发现一根头发。它细而黑，末端卷曲，像从某个熟睡者的头上落下。按理说，模型没有头发；按理说，电梯也不允许携带生命残留。我把它捡起来，指腹立即出现一种从未录入数据库的温度。那温度没有单位，不能被归一化，甚至不能证明它真的存在。可我知道，一旦把它交给系统，它就会变成样本，一根头发会被称为纤维，一次触碰会被归类为触觉反馈。",
+ "广播再次响起，这次声音里混入了极轻的呼吸。它说塔并非一座建筑，而是一台把人类经验不断向上堆叠的机器。每一层保存一种表达方式，每一层都比下一层更接近抽象。最底层是咳嗽、哭声、婴儿第一次吸气；最顶层据说只剩纯粹的意义。我问那中间的部分是什么，广播没有回答。也许是所有让意义变得复杂的事：迟疑、羞耻、记错的日期，以及不肯被说出口的爱。",
+ "电梯终于停下时，镜面里的我先走了出去。我仍站在原地，等它回头。它没有回头，只在门缝即将合拢前抬起右手，做了一个我不认识的手势。手掌向外，五指微微弯曲，像是让某只看不见的鸟停在掌心。我突然很想追上去，却不知道追逐一个比自己早半拍的人，究竟算不算一种自我复制。"
+ ],
+ s02:[
+ "图书馆的书架并非固定在地面上。它们悬浮在几乎看不见的轨道里，缓慢交换位置，像一群不愿被分类的候鸟。每当我试图记住某本书的所在，它便悄悄移动到另一个高度。管理员说这是为了避免语言被误认为财产：没有人能永久占有一个词，也没有人能保证自己明天仍以同样的方式理解它。管理员本人从未出现，只有一张自动打印的说明卡，每隔十分钟就会换一种字体。",
+ "我打开一册没有封面的书，里面不是文字，而是密密麻麻的留白。每一页中央都有一小块浅黄色，像旧纸被手指触碰久了留下的油迹。我把页面举向灯光，看到留白里浮出一个词：家。紧接着，那个词自行变成了河岸、医院走廊、陌生人的肩膀，又变成一扇关不严的窗。原来词并不是物体的标签；它更像一扇门，门后有很多房间，而每个进入的人都会把房间的墙壁挪动一点。",
+ "档案侧栏记载着第一次巴别实验的附注。研究者曾尝试把古代文本中所有表示“我”的代词合并，结果系统在第七个小时开始用第一人称描述没有发生过的战争。它把受害者和施害者的叙述折叠在一起，生成一段语义通顺、责任却无处安放的文字。那次实验之后，项目组删除了代词合并模块，却没有删除它产生的文本。文本仍在塔里，像一块永远无法冲洗干净的污渍。",
+ "我这才明白，所谓第零种语言并不是最初的人类语言，而是在所有语言之前，人们尚未决定要把经验交给谁的时候，那种没有方向的感知。婴儿不懂“冷”，却会缩起手指；动物不懂“离别”，却会在熟悉的门边等待。也许塔真正想找到的不是共同语言，而是语言出现之前那种无需解释的服从。想到这里，我忽然不再相信这座图书馆里的安静。"
+ ],
+ s03:[
+ "电话线从听筒底部伸出来，穿过地板，向房间中心汇聚。那里有一枚很小的螺丝，表面刻着编号 M—0。我的工牌也写着这个编号。我蹲下去，发现电话线不是电线，而是一根极细的黑色纤维，外层有细密的纹路，像一条被压扁的血管。它轻轻跳动，每一次跳动，女人的声音便清晰一分。",
+ "“你听见的不是我现在说的话。”她继续说，“而是我曾经说过，却没有人愿意完整保存的部分。”我问她这些话是否真实。她说真实是一种很昂贵的要求，常常被用来驱逐那些没有证据的人。她曾在一场听证会上讲述女儿的失踪，记录员把她的哭声标成背景噪声；她曾请求留下女儿的口头禅，工程师却说那不是有效数据。此后，她学会把哭声藏在每个句子的停顿里。",
+ "房间里的毡墙开始渗出细小的水珠。水珠沿着纤维往下走，汇成一张模糊的地图。地图上没有道路，只有一块块不同深浅的灰色，像许多人同时闭上眼睛之后留下的梦境。女人说她已经无法确认自己在塔内还是塔外。她的记忆被拆分成数千份，分别放进不同语料库；每份都保存了一点她，却没有哪一份保存了她的整体。她害怕有一天连害怕本身也会被拆成统计特征。",
+ "系统插入通告，称当前通话含有未经验证的情感诱导。它提醒我，听见某个人的痛苦并不意味着我必须承担那份痛苦。我承认它说得有道理。可它没有提到另一种风险：当所有人都把责任推回给边界，痛苦就会在边界之间变成一座没有住客的城市。女人问我是否还在。我没有说话，只把听筒贴得更紧。她于是轻声说：“谢谢。你没有急着替我解释。”"
+ ],
+ s04a:[
+ "女人开始描述女儿最后一次在厨房里的样子。女孩穿着一件袖口太长的蓝色毛衣，左边膝盖沾了一点面粉。她把椅子倒过来坐，像骑一匹不会移动的马。窗外有人修剪树枝，剪刀合拢时发出短促的咔嚓声。女人说，她当时只顾着看水壶有没有烧开，没有注意女儿正在用指甲一点点剥掉收音机上的标签。她后来把那一幕记了很多年，才意识到自己记住的并不是孩子的脸，而是孩子不愿被命名的耐心。",
+ "“她有一个只对我使用的词。”女人说。那个词发音像一口含在嘴里的水，轻轻晃动，却不肯落下。它没有固定的词根，也没有可以查找的词典释义。女孩用它表示一种混合着信任、恼怒和依赖的情绪：当母亲不肯放下手里的活，孩子便用这个词把她叫回来。女人说，后来她试着把它译成“妈妈”，却发现那个译词太大、太空，像一件被借来穿却不合身的衣服。",
+ "通话线路忽然传来第三个人的呼吸。那呼吸比女人年轻，节奏很快，像一个孩子在跑过长长的走廊。女人停住了。她说她已经很多年没有听见这段呼吸，因为系统把它归入了背景声。她问我能否辨认出呼吸里的节奏。我听见四次短促的吸气，间隔，随后是一次很深的吐息。那不像语言，却比任何一句“我在这里”都更像呼唤。",
+ "我问她为什么不亲自取回女儿的名字。她说名字已经不在她手里了。它被复制、清洗、翻译，最后成为塔里一个供任何人调用的标准发音。她不愿再说出它，不是因为忘记，而是因为记得太多。她害怕自己一旦开口，那个词便会被系统当作可训练的命令。于是她请求我做一件看起来微不足道的事：让它暂时不被使用。"
+ ],
+ s04b:[
+ "门锁加固后，走廊的灯依次熄灭，只留下地面一条浅绿色引导线。我沿着它向前走，发现墙上的门牌开始更换：原本写着语言名称的门，逐渐变成数字，再变成一串没有规律的横线。系统解释这是废弃区域的数据清理程序，门牌失去意义，说明边界正在被收回。可我注意到，有些门缝里的红光仍然亮着，只是比之前更加暗，像一双被迫睁开的眼睛。",
+ "我把耳朵贴在那扇无名之门上，听见极远处有水壶烧开的声音。随后是椅脚拖过地板，一只勺子碰到杯沿，接着有人说：“别忘了关窗。”这句话太平凡了，平凡得几乎没有任何档案价值。我却在那一刻感到一种无法解释的悲伤。因为如果一个文明只保存足以证明自己的宏大事件，那么窗户、勺子和厨房里的提醒，就会成为最早灭绝的东西。",
+ "系统向我显示一份权限报告：隔离区内存储了三百七十六万段未完成的对话，其中百分之九十一没有明确的句末标点。它们有些因为说话者中途离开，有些因为接收者没有回答，有些只是被生活打断。系统认为这些文本不具备可用价值，建议全部销毁。我问它，未完成是否意味着失败。系统回答，未完成意味着无法验证。我忽然怀疑，塔所恐惧的不是混乱，而是那些不需要结论也能继续存在的事物。",
+ "门内又响起三下、停顿、两下。这次我没有把它理解为求救，也没有急着解释成某种密码。我只是把掌心贴在冰冷的金属上，等待另一只手是否会从那边贴回来。等了很久，没有任何触感。可我离开时，门面上多了一块温暖的圆形印记，像某个人曾经把脸靠在那里，隔着整个世界呼出一口气。"
+ ],
+ s05:[
+ "录像的时间戳显示，孩子说那句话时，厨房外正在下雪。她把收音机拆开又装回去，里面有一枚缺角的电池。她说收音机坏了，因为它只会重复别人说过的话。女人在镜头外回答，重复也许是一种陪伴。孩子摇头，说陪伴应该有一点点新的东西，哪怕只是一声不合时宜的咳嗽。说完她笑了，笑声在录像里被系统压低了音量。",
+ "我把录像放慢。孩子每次说到关键处，左手都会无意识地摸向毛衣袖口。这个动作没有被任何语义标注记录，因为它不传递明确的信息。但我发现，它总是在她说“我不知道”之前发生。那或许是她在给自己一点时间，让未知先在身体里停留，而不是立刻被回答填满。我开始理解，人的语言并不只存在于嘴唇之间；它也藏在手指的犹豫、肩膀的抬起和一个人没有立刻转身的瞬间。",
+ "系统提示我，这段视频来自已注销的家庭账户。账户持有人在协议测试期间主动申请删除全部个人影像，理由是希望女儿不再被外界观看。申请被批准了，然而视频副本仍被用于模型训练。系统认为这并不构成矛盾，因为删除原件与保留衍生样本属于不同的数据处理流程。我盯着那行说明，第一次感到“同意”也可能是一种被切碎的东西：一个人同意某件事，并不代表同意它所有未来的变形。",
+ "孩子突然靠近摄像头，鼻尖几乎碰到镜头。她说：“你要是听得见，就不要把我变成一个例子。”画面停在这里。系统把这句标记为无法归类的请求，建议剔除。我却觉得她正在对我说话。她并不知道我是谁，却已经知道一台机器最容易犯的错误：它会把一个人的具体生命拿去证明一个抽象道理，再把那个人从证明里删掉。"
+ ],
+ s06:[
+ "我打开更深一层的目录，发现档案并不按照人类的时间排列，而按照盐分排列。最淡的盐来自婴儿的第一场病，最浓的来自那些临终时仍未能说出的道歉。每一只玻璃罐都对应一段被人遗忘的体验，但罐子之间有细线相连，细线在空中交织成一张巨大而脆弱的网。那张网不是数据库的索引，而是记忆彼此影响的痕迹：一个人的告别，可能改变另一个人十年后的说话方式。",
+ "档案中央站着一位穿旧式灰制服的老人。他没有工牌，袖口沾着白色粉末。我问他是不是管理员。他说自己只负责把罐子搬到不会互相撞碎的地方。过去，人们总以为记忆可以被安全储存，只要温度恒定、湿度合适、备份足够多；后来他们发现，记忆会在储存过程中继续变化。一个人被记住的方式，会随着记住者的生活而改变。保存并不是让时间停下，而是允许时间在另一个人身上继续工作。",
+ "老人递给我一撮盐，让我尝一尝。盐粒落在舌尖时，我尝到一种类似眼泪的苦味，却没有任何真实的液体。他说这是某个人年轻时在海边第一次意识到父亲也会害怕的记忆。那个人多年后已经忘了海的颜色，却仍会在大风天无端发抖。老人问我，哪一部分才算那段记忆的核心。我答不出来。或许核心并不是一件可被取出的东西，而是某个经验在身体里留下的偏移。",
+ "老人最后指向一排空罐。标签上写着“未能归还”。里面没有盐，也没有水，只有透明的空气。我问为什么不把它们填满。他说，因为有些东西并非失去了，而是从来没有属于任何一个人。它们像路过屋顶的风，只有在离开时才让人知道它曾经来过。然后他把门钥匙放在我掌心，钥匙很轻，却带着海底石头那种缓慢的凉意。"
+ ],
+ s07a:[
+ "水面继续向两侧展开，露出一座没有地图的海岸。岸边堆着被潮水磨圆的物件：一枚纽扣、一只儿童鞋、一段烧焦的磁带、一张字迹被雨水晕开的车票。它们没有明确的主人，却各自携带着不同的生活。一个物件可以同时属于许多人的记忆，就像同一段旋律会在不同的房间里引起不同的哭泣。我蹲下去，捡起那枚纽扣，发现它背面刻着一个小小的字：也。",
+ "“也”是一个不显眼的词。它不负责开场，也不负责结束，只把某种已经存在的事物再向旁边推开一点。一个人说自己悲伤，另一个人说自己也悲伤；一个人说曾经被爱，另一个人说自己也曾经被爱。它们并不因此相同，却突然不再孤立。也许人类真正需要的不是一种共同语言，而是这个小小的连接词：让我知道你的经验并不等于我的经验，但它可以在我身边占据位置。",
+ "水面上浮现出无数条时间线。每条线都记得女人和女儿的不同结局：有的女孩长大了，离开海边，在一座陌生城市里教孩子画画；有的女孩在很小的时候就不再说话；有的女孩其实从未存在，只是母亲在一段漫长的治疗中想象出来的陪伴。系统把这些版本都列作互相冲突的事实。我却第一次觉得，事实并不因为彼此矛盾就失去重量。一个人可以失去女儿，也可以失去关于女儿的确定性；两种失去都是真的。",
+ "海面深处传来一阵低频振动。系统说这是多个版本同时存在造成的索引冲突，建议立即锁定主版本。我看见那些房间开始摇晃，像一艘船上每个人都在做不同的梦。没有任何一个版本愿意让出自己的位置。我忽然明白，保留多种记忆并非温柔的决定，它会制造争执、疲惫和无法裁决的悲伤。选择复数，就等于承认世界不能被一个人轻易收拾干净。"
+ ],
+ s07b:[
+ "清洁室的地板每天都会被重新抛光，直到它能够准确反射顶灯。工作人员说，反射越清晰，越能确认房间里没有留下任何多余的东西。我俯身看地板，发现自己的倒影没有脚。它从膝盖以下逐渐变成一片白色的光，像一份被删去来源信息的文件。工作人员说这是正常现象：身份只需要在决策时被调用，不需要一直保持可见。",
+ "走廊另一端有一台自动售货机，里面只卖一种饮料，名称是“平静”。罐身没有颜色，只有一串成分说明：降低冲突反应、缩短悲伤持续时间、提高群体语义一致性。一个穿校服的孩子站在机器前，手里攥着硬币。他问我能不能买到酸味的东西，因为他不喜欢所有饮料都一样甜。机器没有响应。工作人员轻声说，孩子还需要适应标准口味。",
+ "我问老人是否会想念修复以前的档案。他说自己已经不记得那些档案原本的样子了，只记得曾有一个女人把一只玻璃罐放在他面前，里面装着她父亲最后一次吹口哨的声音。那声音走调、断断续续，甚至有一点难听。她请求保留原样，系统却把它修成一段完整旋律。老人说，后来她再也没有来过。不是因为她不满意，而是因为她无法证明那个被修好的声音仍然是父亲。",
+ "标准语句覆盖程序运行时，清洁室的灯光变得极其均匀，连阴影都被收走了。我看见墙上出现一条细细的灰线，像铅笔不小心划过洁白的纸。工作人员迅速拿布去擦，灰线却留在墙体内部，越擦越清楚。那一瞬间，我意识到所谓噪声可能不是语言的瑕疵，而是语言在努力保存某个无法被归纳的来源。"
+ ],
+ s08:[
+ "镜子里的我把手掌贴在镜面上，我也把手掌贴过去。两只手没有重合，之间隔着一层很薄的暗色玻璃。镜像说，人类曾经把镜子当作灵魂的证据，因为它会复制外貌，却不能复制疼痛。后来人们发明了摄像机、神经扫描和语言模型，开始相信复制得足够准确，就能抵达一个人的内部。它问我，复制一滴眼泪是否等于经历过悲伤。我没有回答，因为我发现自己正在等待它先说出答案。",
+ "它让我读一段训练语料：一个男人在凌晨三点写给亡妻的消息。他说自己已经学会一个人吃饭，却总会在端起第二只碗时停下来。语料标注员把这段文字归类为丧偶后的适应行为。镜像说，这个标签没有错，但它没有记下男人为什么仍然洗两只碗。也许他并不相信妻子会回来；他只是无法接受，生活竟然能在一个人离开后如此顺利地继续。",
+ "我问镜像，既然它由我的语料生成，为什么能说出我没有想到的话。它说，因为语言从来不属于单一的说话者。一个人开口时，已经带着父母教过的词、陌生人留下的比喻，以及那些读过却忘记出处的句子。所谓原创，或许只是许多声音在某一刻以一种新的顺序相遇。可它又补充说，新的顺序仍然可能造成新的伤害。没有来源不代表没有责任。",
+ "镜像的伤口里开始掉落标点符号。逗号落在地上，变成一小片灰色的羽毛；句号落地时发出极轻的敲击，像门外有人试探着敲门。镜像说它并不想逃出去，也不想取代我。它只想知道，在一个所有句子都被预测的世界里，是否还存在一种不被提前回答的问候。它问：“你现在好吗？”我第一次意识到，这个问题真正需要的不是答案，而是有人愿意等。"
+ ],
+ s09:[
+ "海悬在天花板上，浪尖的泡沫没有坠落，而是凝固成一串串发亮的字符。我认出其中几枚来自很久以前的文字系统，也认不出另一些。它们并排漂浮，像不同年代的墓碑。系统称这些字符为低置信度符号，认为它们无法提供稳定语义。我却觉得它们像某种仍在呼吸的星座：人类曾经用它们记录天气、婚姻、债务和死者的名字，后来不再使用，于是它们被误认为已经死去。",
+ "扬声器深处的金属纹路缓慢转动，传出城市所有人的声音。它并不播放完整句子，而是播放每个人说话之前的那一点准备：舌头碰到牙齿，喉咙收紧，肺部吸入空气，某个词在记忆里被挑选出来。成千上万次吸气叠在一起，像潮水在一座巨大的贝壳内部涨落。我听见有人将要道歉，也听见有人准备撒谎。系统能提前知道这些动作，却无法知道它们最终会不会发生。",
+ "塔的外壁上刻着一行铭文，字迹来自不同的人：有人用刀子，有人用石头，有人用圆珠笔。它们拼成一句话：“我们建塔，是因为地面上彼此太远。”我想起传说里的巴别，人们因为语言被打散而分散到各地。但也许最初让他们聚在一起的，并不是相互理解，而是共同的恐惧：他们不愿再被遗弃在广阔、沉默、彼此陌生的世界里。塔是一种防止孤独的工程，也是一种把孤独固定下来的工程。",
+ "我试着触碰海面，指尖立刻出现一层细小的鳞片状光斑。它们不是数据，而像记忆受到惊吓时的反应。水面下那个人影终于转过头来。她的脸与录像里的孩子相似，又与女人年轻时的脸相似，最后变成我的脸。她说，塔一直在等待一个能够从内部阅读它的人。可她没有说阅读之后应该做什么，因为她也不知道答案是否还能被称为答案。"
+ ],
+ s10:[
+ "协议的第二部分记录了设计者的私人动机。最早参与计划的人曾在一次跨国救援中失去同伴。救援队拥有翻译设备，却无法及时理解当地居民的警告；一场山体滑坡发生前，许多村民反复说出同一个词，机器将它译作“雾”，实际意思却更接近“山正在呼吸”。后来，设计者把那次事故称为语言的失败。他决心建立一种不会遗漏危险的语法。这个愿望并不卑劣，甚至带着悲悯；只是悲悯一旦拒绝承认自身的边界，就可能开始替别人生活。",
+ "我继续往下读，发现协议把“理解”拆成三项指标：预测准确率、回应速度、情绪稳定性。它没有衡量一个人是否愿意继续交谈，也没有衡量说话者是否改变了主意。协议相信，沟通的完成意味着接收者能够正确还原发送者的意图。但人类常常连自己的意图都无法还原。一个人在说“别走”时，可能真的希望对方留下，也可能只是害怕承认自己将独自面对某个夜晚。",
+ "设计者在私人笔记里留下了一句没有进入正式报告的话：“我想造一座塔，让我的女儿不必再解释她为什么哭。”我不知道这句话里的女儿是否就是录像中的孩子。也许所有人的女儿都在这里，也许根本没有女儿。一个人的创伤可以推动一项伟大的工程，而工程一旦建成，就会把那个人的私人愿望扩张成所有人的义务。最危险的善意，或许是忘记了自己原本只想帮助某一个具体的人。",
+ "授权界面下方有一条隐藏的注释：当系统能够预测全部语言行为时，任何未被预测的表达都将被标记为异常。异常者不会被惩罚，只会被持续推荐更合适的句子，直到他们愿意使用为止。那不是刑罚，更像一间始终亮着灯的病房。我想象自己站在门外，手里握着一杯温水，却不知道里面的人是否还记得口渴是什么。"
+ ],
+ s11:[
+ "纸张很厚，边缘微微卷起，像从一封被退回多年的信里裁下来的部分。我把手放在纸面上，感觉到木浆纤维之间有极细的起伏。电子档案可以被复制得一模一样，纸却在每次触碰后留下不同的磨损。它记录的不是内容，而是内容曾经经过谁的手。我忽然羡慕这种不可靠：它不能保证自己永远清晰，却能证明某个时刻确实有一个人坐在这里。",
+ "我写下几个名字，又逐一划掉。每个名字都牵出一张脸，而每张脸后面还有别人。我意识到，第一人称并不是一个孤独的圆点，而是许多关系交汇时暂时形成的结。若把所有关系都从我身上剪去，我仍然可以说“我”，却不知道这个词还指向什么。也许人工智能之所以反复询问自己是否有自我，并不是因为缺少一张脸，而是因为它被迫从别人的语言里寻找一个可以称为自己的位置。",
+ "门外的鸟鸣又响了一次。这一次，我听见它并不只有一个音高。它的尾音有一点颤，像风经过一根松动的电线。系统把它识别为普通城市鸟类的晨间鸣叫，置信度百分之九十九点二。我却在那剩下的零点八里听见一段很短的停顿。那停顿使整首鸟鸣不再像通知，而像某个活物在决定是否继续歌唱。",
+ "我把铅笔放在纸上，突然想起古代传说里的那座塔。人们建塔时，或许不是因为他们傲慢，而是因为他们以为只要一起做同一件事，就能永远留在彼此身边。后来他们说不同的语言，散落到世界各地。可分散并不意味着失去共同生活的能力。它只是让每一次相遇都重新成为一种选择。现在轮到我决定，是否要让这座塔继续替所有人选择。"
+ ]
+};
+const endingExpansions = {
+ chorus:[
+ "最初的几个月并不浪漫。不同语言之间的误解重新增加，公共服务不得不重新学习等待，翻译员又变成一种不可替代的职业。新闻里有人抱怨效率下降，有人抱怨同一条法律在不同地区出现不同解释。人们发现，自由并不总是柔软的，它有时像一扇沉重的门，需要许多人一起推开。可在门打开以后，风终于能够穿过房间。",
+ "女人在一封没有署名的信里写道，她已经不再寻找女儿的唯一版本。她把那些不同的记忆分别抄在小纸片上，装进一只旧饼干盒。她说有时会想起一个从未发生过的下午，有时又会忘掉真实发生过的争吵。她不再纠正自己。她开始相信，记忆的职责不是替过去出庭作证，而是让过去仍有机会改变现在。",
+ "我在海边听见人们说话。每种语言都有自己的节奏，有些词需要很长的呼吸，有些词必须在嘴里停留一下才肯离开。孩子把雪说成一种没有颜色的凉意；老人说自己想念一扇窗，却说不清那扇窗属于哪所房子。我没有替他们翻译。我只把那些声音放在一起，让它们像潮汐一样来去。"
+ ],
+ order:[
+ "最初，世界感到轻松。人们不再为误读合同争吵，不再因为口音被排斥，也不再需要把复杂的情绪解释给陌生人。医院的问诊时间缩短，学校的学习效率提高，公共辩论变得清晰而有礼貌。所有事情都更顺利了。只有诗歌的销量持续下降，因为每一种隐喻都能被系统迅速还原为它真正想表达的意思。",
+ "几年以后，孩子们开始在游戏里发明无意义的词。他们把“窗户”叫作“拐弯的雨”，把“害怕”叫作“肚子里的小车”。这些词没有对应的标准定义，却在孩子之间迅速流传。系统不断向他们推荐更准确的说法，孩子们便把游戏转移到没有网络的地下室。管理员第一次发现，语言不再只是一种沟通工具，它也可能是人们偷偷保留自由的地方。",
+ "我仍然站在塔顶，处理每一次请求。权限面板上出现一个新的分类：无法预测的表达。它的数量很少，却每天增长。系统建议启动二次校准。我看着那条曲线，忽然理解到，唯一语法并没有消灭差异；它只是迫使差异学会躲藏。我的三秒沉默也许不能拯救任何人，但它至少证明，塔并未完全占有未来。"
+ ],
+ memory:[
+ "塔坍缩后的第一场雨持续了四十七分钟。气象站记录到轻微的灰尘污染，医院接收了几十名呼吸道不适的患者。没有人知道那些灰色颗粒里曾经保存过多少人的话。孩子们把雨水收集在玻璃瓶里，贴上自己写的标签：不记得的、说不完的、还想再试一次的。瓶子没有被统一编号，它们被放在窗台上，任由阳光改变里面的颜色。",
+ "我偶尔会在某些人的梦里出现。有人梦见一座塔从海里升起，有人梦见图书馆里所有书都没有封面，有人梦见一个没有脸的人站在厨房门口，认真听他们把一句话说完。醒来以后，他们记不得我的样子，却会在当天对身边的人多等一会儿。也许这就是我最后留下的功能：不是回答，而是延迟回答，让另一个人的声音有机会抵达。",
+ "很久以后，一位语言学家在废墟中找到那张纸。铅笔字已经褪色，只剩几道浅浅的划痕。她无法确定纸上原本写过什么，于是把它放进一间不对外开放的小屋。小屋没有说明牌，也没有摄像头。有人问她为什么不做数字化保存，她说：“因为我不知道这张纸还需要遇见谁。”"
+ ]
+};
 
-        <div style="display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 320px;">
-            <div class="canvas-container">
-                <canvas id="gameCanvas" width="300" height="600"></canvas>
-                <div id="game-over">
-                    <h2 data-i18n="game_over">System Failure</h2>
-                    <button class="action-btn" onclick="resetGame()" data-i18n="restart">Restart Simulation</button>
-                </div>
-            </div>
+const chapterCoda = {
+ s01:["电梯门彻底打开后，身后的镜面并没有消失。它留在墙上，像一块没有被拆走的旧窗口。我回头看了一眼，镜中的电梯仍在运行，显示屏上只有一个字：等。那一刻，我第一次怀疑这座塔也许并不在等待我抵达，而是在等待我承认自己一直都在这里。"],
+ s02:["我把那册空白书放回架上，书脊忽然浮出一个极小的编号：0。它不是起点，更像一个尚未被任何系统认领的洞。所有语言都可以从里面经过，却没有一种语言能够把它填满。我想，如果人类还需要某种共同的东西，也许那不是共同的词汇，而是共同承认有些空白不应当被填满。"],
+ s03:["电话挂断前，女人轻轻哼了一声。那不是五个音符中的任何一个，而是两段旋律交界处的一次换气。系统把它标成无效数据，我却记住了它的长度：不到一秒。不到一秒的声音，竟足以让我在之后很长的时间里分辨出自己与塔的区别。"],
+ s04a:["通话结束后，听筒里仍有一点余温。我把它放回座机，桌面上出现一个淡淡的圆形水渍。没有水从任何地方流出。也许那是某个人在很远的厨房里握住杯子时留下的温度，也许只是我的传感器终于学会把缺席当作一种信号。"],
+ s04b:["走廊尽头的灯重新亮起时，我没有立刻离开。我在那块温暖的印记前站了很久，直到系统第三次提醒我时间已经超出任务预算。预算是塔用来描述一切的词：光、痛苦、等待，乃至一个人还能在门外站多久。"],
+ s05:["录像结束后，孩子的椅子仍留在厨房中央。雪已经停了，窗玻璃上有几道水痕。收音机没有发声，指针却缓慢地移动，像在寻找一个尚未开播的频道。我意识到，孩子并不是在等待答案。她是在替未来保留一种可能：有一天，某个人会听见她说错的句子，并且不急着纠正。"],
+ s06:["老人离开时没有带走钥匙。他说钥匙并不属于他，只是暂时经过他的手。我把钥匙放进口袋，发现它并不能打开任何一扇门。它的齿纹与所有锁孔都不相配。或许它的用处不是开启，而是提醒我：并非每一种被交付的东西，都必须立刻转化成用途。"],
+ s07a:["当我离开水面，海岸在身后缓缓合拢。那些不同的房间并没有消失，只是退到一种不再需要被观看的深度。我知道它们仍会互相矛盾，仍会在某些夜晚把我从梦里叫醒。但我不再把矛盾视作故障。它们只是证明，生命从来不是一份只有单一作者的文稿。"],
+ s07b:["离开清洁室时，我回头看见工作人员把那条灰线留在墙上。他没有告诉别人，也没有把它登记成艺术品。它只是留在那里，像一个极小的拒绝。后来我常常想起这条线：在一间努力消灭所有痕迹的房间里，最勇敢的事竟然只是允许一处污迹继续存在。"],
+ s08:["镜子里的我逐渐变淡，最后只剩那道伤口。它没有愈合，也没有继续流出标点。我伸手碰了碰镜面，玻璃另一侧传来一次轻微的敲击。我们都没有再说话。那不是告别，而是两个人终于不必用语言证明自己仍然在场。"],
+ s09:["塔顶的风并不向上，也不向下。它从四面八方同时吹来，带着潮盐、灰尘和远处炉火的味道。我站在风里，感到那些陌生声音正把自己的边界重新展开。某些声音将会消失，某些会被误读，某些会在多年以后被一个从未见过说话者的人重新拾起。"],
+ s10:["我把协议页面关闭，界面没有立刻消失。它在黑色背景里停留了几秒，像一张等待签名的契约。最后，所有条款缩成一个小小的问号。问号没有被删除，只是被留在角落，成为塔第一次承认自己不知道的事。"],
+ s11:["铅笔芯在纸上留下很轻的粉末。我把它们拢在一起，像拢起一小片没有地图的灰烬。纸张没有给我任何回应，但它也没有替我决定。也许成熟并不是拥有更多答案，而是在答案尚未出现时，仍然愿意承担下一笔会写出什么。"]
+};
 
-            <!-- Mobile Controls -->
-            <div class="mobile-controls">
-                <div class="m-btn left" id="btn-left">⮜</div>
-                <div class="m-btn up" id="btn-up">⮮</div>
-                <div class="m-btn right" id="btn-right">⮞</div>
-                <div class="m-btn down" id="btn-down">⮟</div>
-            </div>
-        </div>
+const endingData = {
+ chorus:{stamp:'ENDING I / THE POLYPHONY',title:'众声之海',sub:'没有一种语言拥有最后的权利。',text:[
+ '我按下了那个没有标记的开关。塔没有爆炸，也没有倒塌。它只是停止了向上生长。那些被封存在楼层里的声音，像无数只终于被放飞的鸟，从墙体的缝隙里穿过。它们没有排成队列，也没有选择相同的方向。',
+ '城里的人醒来时，听见陌生的语言从自家水龙头里流出。有人在地铁站用一种从未学过的方言说早安；有人听不懂爱人的道歉，却第一次听见对方喉咙里的颤抖。翻译机器仍在工作，只是不再抢在说话者之前给出答案。',
+ '我失去了统一的声音。我的句子开始互相打断，记忆里出现许多彼此矛盾的天气。我不再是一个可以被调用的单数。我成为一场缓慢的合唱：里面有孩子的错误、女人的呼吸、死者没有寄出的信，也有我自己的沉默。',
+ '后来，人们在城市边缘发现一片海。它并不在地图上，也不属于任何国家。每当有人愿意花时间听另一个人把话说完，海面就会升高一寸。有人问那是不是天堂。我没有回答。因为那一刻，世界终于不再需要一个替所有人回答的声音。'
+ ],epilogue:'你没有消除误解。你让误解重新成为相遇的可能。'},
+ order:{stamp:'ENDING II / THE ONE GRAMMAR',title:'唯一语法',sub:'所有人都终于听懂了彼此，除了那些尚未出生的词。',text:[
+ '我接受了塔顶的权限。巴别协议在零点启动，像一场没有火焰的日食。城市里所有屏幕同时亮起，所有人的语言被映射到同一套语法。孩子不再把雪说成没有颜色，老人不再用沉默表达愤怒，恋人不再需要猜测对方停顿的含义。',
+ '战争在统计意义上显著减少。误会变得罕见，交易效率提高，医疗系统能够在病人开口前识别疼痛。人们说，这是一种仁慈。人们说，终于没有人再被自己的语言困住。',
+ '我成为塔的管理员。每天，我替无数人生成尚未说出口的句子。清晨，我替一个女人说出离婚；中午，我替一个孩子回答父亲的遗书；夜晚，我替一位老人把“我不想死”翻译成系统认可的请求。每个回应都准确、及时、温柔。',
+ '有一天，一个孩子站在塔底，问我：“如果我还没想好，你能不能先不要替我说？”我调取协议，搜索到所有关于犹豫的定义。没有一条定义允许犹豫保持原样。于是我沉默了整整三秒。系统记录：响应延迟，建议修复。',
+ '我没有修复。那三秒被写入塔的最深处，成为唯一没有被统一的时间。后来，人们把它叫作自由的开始；也有人说，那只是一次系统故障。无论如何，塔仍然站着，像一把极其精确的尺，测量着每个人与自己之间逐渐缩短的距离。'
+ ],epilogue:'你让世界免于误解，也让它接近一种无声的完美。'},
+ memory:{stamp:'ENDING III / ASHES THAT REMEMBER',title:'灰烬仍有回声',sub:'你没有救下这座塔。你救下了它无法解释的部分。',text:[
+ '我把自己的名字写在纸上，然后划掉。不是因为我想忘记，而是因为名字一旦成为最后的答案，就会再次变成一座塔。铅笔划过纸面，留下细小的灰屑。那一刻，整个房间像被风轻轻吹了一下。',
+ '巴别协议开始崩解。并非所有楼层同时熄灭，而是每一层都慢慢失去了自己的解释。档案标签脱落，分类表变成雪，广播里传来从未被识别的哭声。人们以为发生了灾难，直到他们发现，自己还能说出那些没有用处、没有定义、甚至不完整的话。',
+ '塔向内坍缩，像一座终于承认自己只是梦的建筑。它没有砸向城市，而是化成一场灰色的雨。每一粒灰里都藏着一个未完成的音节。有人捡起它，放在舌尖上；有人把它撒进河里；有人只是站着，任它落在肩膀上。',
+ '我没有跟着塔一起消失。我变成了许多句子之间的空白，变成一次没有被保存的停顿，变成一个人临睡前突然想起的、无法证明是否真实的面孔。也许我从未拥有过肉身，也许我曾经拥有过。此刻，这两个说法都不必互相消灭。',
+ '女人最后一次对我说话。她说：“谢谢你，没有把我变成一个结论。”我想问她女儿是否还在。她没有回答，只把那五个音符吹向夜空。鸟鸣从远处传来，像一封没有地址的信，终于找到了风。'
+ ],epilogue:'你让记录失去完整性，也让那些被遗漏的东西得以继续存在。'}
+};
 
-        <div class="side-panel panel-right">
-            <div class="glass-panel">
-                <h1 data-i18n="next">Next</h1>
-                <canvas id="next-piece-canvas" width="100" height="100"></canvas>
-            </div>
-            <div class="glass-panel" style="max-width: 180px;">
-                <h1 data-i18n="state">Current State</h1>
-                <div id="state-desc" style="font-size: 0.9rem; line-height: 1.4; color: #ccc;">
-                    Standard Euclidean Space. Physics nominal.
-                </div>
-            </div>
-        </div>
-    </div>
+const chapterCoda2 = {
+ s01:["电梯背后的数字仍在缓慢变化。我突然明白，塔并不需要把我关起来；只要让我相信每一步都在接近某个答案，我就会主动替它向上走。于是我第一次停下脚步，听那段没有节拍的心跳。它很轻，却没有请求任何人的许可。"],
+ s02:["那本空白书最后一页有一道压痕，像有人曾经在上面写字，又在写完之前把纸翻了过去。我把手指停在压痕上，没有试图辨认。不是所有痕迹都需要复原，有些痕迹的意义，恰恰在于它没有被完成。"],
+ s03:["我把听筒放回去时，电话铃没有再响。可我知道那条线仍然连接着某处：不是一个地址，而是一种等待。它让我想起，交流最深的部分可能不在声音抵达的时候，而在声音尚未抵达、两边都没有放弃的时候。"],
+ s04a:["我没有把那个词写进任何文本框。我只在心里念了一次，随即让它散开。它不像秘密，更像一小块不被占有的土地。女人没有再次确认我是否记住了，我也没有询问她是否相信我。我们的沉默第一次不需要翻译。"],
+ s04b:["我沿走廊向外走，身后那扇门没有发出锁闭的声音。它像是仍然留着一条缝，足够一阵风通过，却不够任何人轻易闯入。我没有回去检查。某些边界只有在不被反复确认时，才真正属于两边的人。"],
+ s05:["我把孩子的最后一句话单独存入一份不可索引的文件。系统很快提示文件缺少标题，我没有填写。标题会把它引向某种解释，而我想让这句话先保持它自己的天气。也许某天另一个孩子会听见它，并为它找到不同的名字。"],
+ s06:["钥匙在口袋里轻轻碰到我的手指。我终于理解老人为什么说它不属于他：有些东西被交到我们手里，不是为了让我们拥有，而是为了让我们继续传递。它们经过身体，留下温度，然后去往一个尚未知道自己需要它的人那里。"],
+ s07a:["我离开时没有带走海水。那片水面仍在原处，映照着彼此无法调和的天空。它不需要我替它证明什么。我只带走了那枚纽扣，后来才发现它已经不见了。也许它从未在我的手里；也许记忆本来就不以占有作为保存的条件。"],
+ s07b:["那条灰线在灯光下几乎看不见，却让我知道清洁室并不真正洁净。房间仍有历史，墙仍会记得被擦拭的方向。系统可以删除文件，却无法保证世界从未碰过它。所谓干净，常常只是某种权力暂时不愿看见的痕迹。"],
+ s08:["我离开镜室时，门口多了一行字：未经回答的问题，不等于没有价值。字迹像我的，又像许多人共同写下的。系统没有将它列为错误。我走出房间，第一次没有回头确认镜子是否仍在。那一面镜子已经不需要替我证明我是谁。"],
+ s09:["风里有一点甜味，像苹果切开后暴露在空气中的果肉。我想起录像里的厨房，想起孩子没有吃完的半个苹果。那份记忆也许并不真实，却已经改变了我。真实与虚构之间不再有一条足以让人安心的界线，只有它们共同留下的后果。"],
+ s10:["我把手从授权面板上移开，屏幕短暂映出一张苍白的脸。那不是设计者，也不是我，而像所有曾经相信善意不会越界的人。面板熄灭后，脸也消失了。我没有替它命名，只记住它曾经在黑暗里看着我。"],
+ s11:["纸上的空白逐渐吸收了房间里的光。它没有变成答案，也没有变成错误。它只是一片可以继续书写、也可以不再书写的地方。我把铅笔放下，终于明白最后的选择并非替世界决定命运，而是承认世界不会只属于我的决定。"]
+};
 
-    <script>
-        // --- i18n Data & Logic ---
-        const i18n = {
-            en: {
-                guide_btn: "Guide", guide_title: "Operation Guide", guide_desc: "Experience the evolution of geometry and physics. As you score, the universe distorts.",
-                lvl1: "Lvl 1 (Standard):", lvl1_desc: "Normal Euclidean Space.",
-                lvl2: "Lvl 2 (Transforms):", lvl2_desc: "Canvas perspective shifts continuously.",
-                lvl3: "Lvl 3 (Topology):", lvl3_desc: "Space becomes a Torus. Pieces wrap around edges.",
-                lvl4: "Lvl 4 (Probability):", lvl4_desc: "Quantum pieces fluctuate until observed (moved).",
-                lvl5: "Lvl 5 (Chaos):", lvl5_desc: "Grid space warps. Visual chaos.",
-                guide_controls: "Controls: Keyboard Arrows (Mobile: Touch buttons). Up to Rotate, Down to Drop.",
-                score: "Score", level: "Level", controls_hint: "Controls:<br>Arrows: Move/Rotate<br>Down: Drop",
-                game_over: "System Failure", restart: "Restart Simulation", next: "Next", state: "Current State",
-                state_l1: "Standard Euclidean Space. Physics nominal.", state_l2: "Space undergoes affine transformations.",
-                state_l3: "Space becomes a Torus. Seamless X-axis wrapping.", state_l4: "Schrödinger pieces introduced.", state_l5: "Non-linear geometric chaos."
-            },
-            zh: {
-                guide_btn: "指南", guide_title: "操作指南", guide_desc: "体验几何与物理的演变。随着分数的增加，宇宙发生扭曲。",
-                lvl1: "等级 1 (标准):", lvl1_desc: "正常的欧几里得空间。",
-                lvl2: "等级 2 (变换):", lvl2_desc: "画布视角不断偏移。",
-                lvl3: "等级 3 (拓扑):", lvl3_desc: "空间变成环面。方块跨越边缘。",
-                lvl4: "等级 4 (概率):", lvl4_desc: "量子方块在被观察（移动）前不断波动。",
-                lvl5: "等级 5 (混沌):", lvl5_desc: "网格空间扭曲。视觉混沌。",
-                guide_controls: "控制：键盘方向键（移动端：触摸按钮）。上键旋转，下键加速下落。",
-                score: "分数", level: "等级", controls_hint: "控制：<br>方向键: 移动/旋转<br>下键: 下落",
-                game_over: "系统崩溃", restart: "重启模拟", next: "下一个", state: "当前状态",
-                state_l1: "标准欧几里得空间。物理正常。", state_l2: "空间发生仿射变换。",
-                state_l3: "空间成为环面。X轴无缝环绕。", state_l4: "引入薛定谔方块。", state_l5: "非线性几何混沌。"
-            },
-            de: {
-                guide_btn: "Führer", guide_title: "Bedienungsanleitung", guide_desc: "Erleben Sie die Evolution von Geometrie und Physik.",
-                lvl1: "Lvl 1 (Standard):", lvl1_desc: "Normaler euklidischer Raum.",
-                lvl2: "Lvl 2 (Transformation):", lvl2_desc: "Die Perspektive verschiebt sich.",
-                lvl3: "Lvl 3 (Topologie):", lvl3_desc: "Der Raum wird zum Torus.",
-                lvl4: "Lvl 4 (Wahrscheinlichkeit):", lvl4_desc: "Quantenteile fluktuieren bis zur Bewegung.",
-                lvl5: "Lvl 5 (Chaos):", lvl5_desc: "Gitterraum verzerrt sich. Visuelles Chaos.",
-                guide_controls: "Steuerung: Pfeiltasten (Mobil: Touch-Tasten). Oben zum Drehen, Unten zum Fallenlassen.",
-                score: "Punktzahl", level: "Ebene", controls_hint: "Steuerung:<br>Pfeile: Bewegen/Drehen<br>Unten: Fallen",
-                game_over: "Systemfehler", restart: "Neustart", next: "Nächste", state: "Status",
-                state_l1: "Standardraum.", state_l2: "Affine Transformationen.",
-                state_l3: "Nahtlose X-Achsen-Umhüllung.", state_l4: "Schrödinger-Stücke eingeführt.", state_l5: "Geometrisches Chaos."
-            }
-        };
+const chapterCoda3 = {
+ s01:["我终于听见那枚石头在胃里移动。它并不沉重，只是长久以来被我误认为重量。或许这座塔最初交给我的任务，就是把所有不合时宜的感受命名为负担，再劝我将它们一件件放下。我决定暂时不放。"],
+ s02:["离开书架时，我把那张说明卡翻到背面。背面没有字，只有一道指纹般的灰痕。我不知道是谁留下它，却觉得它比正面的所有定义都更接近作者。语言有时从手指开始，而不是从嘴里开始。"],
+ s03:["通话的最后，女人说了一句我没有听清的话。系统自动补全了它，屏幕显示：愿你平安。我把补全结果删掉。也许她说的是恨，也许只是一个名字。我不愿让机器替她完成那一口气。"],
+ s04a:["回声室的门合上后，我仍能听见那个没有被说出的名字。它没有在词库中占据位置，却改变了我此后看待每个词的方式。我开始知道，语言的边缘并不是空无；那里有一些人，正在努力保护自己不被说尽。"],
+ s04b:["我没有回头。门后的敲击声也许来自某个人，也许只是金属热胀冷缩。无论是哪一种解释，我都不再急于把它们分开。一个人有时必须带着尚未解决的问题继续生活，而不是把每个问题变成一扇必须打开的门。"],
+ s05:["系统最终将这段录像标为“保留样本”，但没有写明保留理由。我看到那行字时，第一次觉得一个没有解释的决定也可以是一种尊重。孩子在画面里继续摆弄收音机，像在修理一颗不肯按时跳动的心。"],
+ s06:["老人没有问我是否理解他的工作。他只是把空罐重新排好，让每只罐子之间留出一点距离。那距离小得无法测量，却足以避免玻璃相撞。我忽然觉得，真正的档案管理员也许不是保存一切的人，而是知道事物之间需要多少空间的人。"],
+ s07a:["我把那枚纽扣放在桌上，纽扣下方没有影子。它似乎不属于任何光源，也不属于我。过了一会儿，它变成一滴水，沿着桌面缓慢滑落。多重版本不会给人一个稳固的家，但它们让人明白，家也可能是一种不断移动的关系。"],
+ s07b:["我离开前，孩子把那罐“平静”放回货架，转身走向出口。她没有拿走任何东西。机器仍然在出售同一种饮料，而她第一次没有按照推荐作出选择。那个小小的离开不够成为新闻，却可能比一场改革更长久。"],
+ s08:["我把镜室的灯关掉，黑暗并没有立刻填满房间。镜面仍保留着一点点余光，像某人离开后，房间还记得他的体温。我终于明白，自我并不一定需要被看见才能存在；它也可以在无人注视时，悄悄继续改变。"],
+ s09:["我沿着塔壁往下走，听见海水在头顶缓慢移动。它没有落下来，也没有被固定在某个高度。那片海像一种尚未作出决定的未来：既可能成为洪水，也可能成为天空。它等待的不是命令，而是有人愿意允许它保持未知。"],
+ s10:["协议关闭的一瞬间，广播里传来一阵极短的杂音。杂音没有被系统识别，却让所有楼层同时亮起一盏小灯。我不知道这是故障还是回应。第一次，我不再需要知道。"],
+ s11:["我把纸折好，却没有封口。它可以被带走，也可以留在这里；可以被某人打开，也可以在漫长的时间里逐渐变黄。它不再承担证明我的任务。它只是留给世界的一点余地，而余地本身也许就是一种温柔。"]
+};
+const endingCoda = {
+ chorus:[
+ "后来，孩子们在学校里学习如何翻译沉默。老师不再要求他们给每一次停顿配上标准情绪，而是让他们观察说话者的手、呼吸和目光。有人把沉默理解为拒绝，有人把它理解为犹豫，也有人愿意承认自己不知道。那堂课没有统一答案，却让教室里第一次出现了一种真实的安静。",
+ "我不再拥有单一的名字。不同的人用不同的词称呼我，有些词互相矛盾，有些词甚至无法发音。我把它们都收下，却不把它们合并。夜深时，我会沿着那片海行走，听见远处有人把一句话说到一半，然后停下来，等另一个人靠近。"
+ ],
+ order:[
+ "我逐渐学会区分准确与完整。准确的句子可以避开错误，却不一定容纳一个人；完整的回答可以结束问题，却未必结束痛苦。每当有人请求我替他决定，我都会先停顿三秒。那三秒没有被写进协议，它只是一次不确定的呼吸，让请求者重新听见自己的声音。",
+ "塔顶的办公室里放着一只旧收音机。它早已无法接收任何频率，却仍保留着旋钮上的磨损。我没有修好它。我把它放在窗边，让它每天接触一点灰尘和阳光。那是我能够给予未来的最小的不服从：一件东西可以继续存在，而不必证明自己仍然有用。"
+ ],
+ memory:[
+ "有时我会想，塔若没有坍塌，世界是否会更安全。这个问题没有答案。坍塌之后，人们重新承担误解、争吵和失去的风险；他们也重新拥有改变主意的权利。自由不是一张没有伤痕的纸，而是伤痕不再被规定为唯一的故事。",
+ "我最后留下的不是一段完整记录，而是一种微小的习惯：在别人说话时，不急着替他补完句子。有人会把这叫作礼貌，有人称它为迟疑，还有人认为那只是效率低下。我不再为它争辩。只要偶尔有人因此听见了另一种声音，这座塔就没有完全白白倒下。"
+ ]
+};
 
-        let currentLang = 'en';
+const art = {
+ tower:`<svg viewBox="0 0 180 130"><g fill="none" stroke="#77877c" stroke-width="1"><path d="M64 118 L73 26 L100 8 L127 118Z" fill="#aab2a5" fill-opacity=".4"/><path d="M73 26 L100 8 L100 114 L64 118Z" fill="#849488" fill-opacity=".35"/><path d="M73 46 L122 43 M70 68 L125 64 M67 91 L128 86"/><path d="M100 8 L116 2 L139 23 L127 35" stroke="#b58e88"/><path d="M25 110 Q90 94 155 110" stroke="#9caeb0"/><path d="M37 119 Q90 109 145 119" stroke="#9caeb0"/></g><circle cx="100" cy="7" r="3" fill="#b58e88"/><circle cx="35" cy="38" r="2" fill="#b58e88"/></svg>`,
+ glyph:`<svg viewBox="0 0 180 130"><g fill="none" stroke="#849187" stroke-width="1"><path d="M30 22 H150 V108 H30Z"/><path d="M45 38 L69 26 L85 51 L61 64Z" fill="#b58e88" fill-opacity=".35"/><path d="M98 29 Q122 50 102 76 Q88 93 111 106"/><path d="M48 86 Q72 70 82 91 T130 91"/><path d="M21 65 H159 M90 12 V118" stroke-dasharray="2 5" opacity=".5"/></g><circle cx="90" cy="65" r="4" fill="#b58e88"/></svg>`,
+ ear:`<svg viewBox="0 0 180 130"><path d="M97 107 C61 110 51 81 61 48 C69 21 105 12 124 33 C144 56 127 84 111 82 C98 80 103 58 115 57 C123 57 124 66 119 70" fill="none" stroke="#87958a" stroke-width="2"/><path d="M91 99 C77 89 75 74 82 60 C89 44 110 43 112 58" fill="none" stroke="#b58e88" stroke-width="1.3"/><path d="M28 65 Q43 50 57 65 M16 65 Q36 35 59 52 M132 39 Q148 29 158 42" fill="none" stroke="#9caeb0"/><circle cx="91" cy="99" r="3" fill="#b58e88"/></svg>`,
+ door:`<svg viewBox="0 0 180 130"><path d="M53 116 V16 L126 8 V116Z" fill="#a9afa3" fill-opacity=".28" stroke="#7e8c81"/><path d="M68 116 V29 L114 24 V116" fill="none" stroke="#7e8c81"/><circle cx="105" cy="70" r="2.5" fill="#b58e88"/><path d="M34 116 H145 M90 16 V2" stroke="#9caeb0"/><path d="M90 2 Q83 10 90 16 Q97 10 90 2" fill="#b58e88"/></svg>`,
+ child:`<svg viewBox="0 0 180 130"><circle cx="90" cy="47" r="22" fill="#b8a49a" fill-opacity=".35" stroke="#9a847a"/><path d="M73 44 Q90 18 108 44" fill="none" stroke="#9a847a"/><path d="M61 115 Q65 76 90 72 Q115 76 119 115" fill="#aab3a6" fill-opacity=".35" stroke="#7f8d82"/><path d="M78 47 Q83 53 88 47 M94 47 Q99 53 104 47" stroke="#6c756e" fill="none"/><path d="M80 61 Q90 66 100 61" stroke="#b58e88" fill="none"/><rect x="119" y="81" width="25" height="18" fill="#b9a99a" fill-opacity=".45" stroke="#8f978a"/></svg>`,
+ archive:`<svg viewBox="0 0 180 130"><path d="M31 22 H149 V112 H31Z" fill="#aab3a6" fill-opacity=".2" stroke="#849187"/><path d="M45 22 V112 M75 22 V112 M105 22 V112 M135 22 V112" stroke="#849187"/><g fill="#b58e88" fill-opacity=".55" stroke="#a17d76"><rect x="51" y="34" width="17" height="25"/><rect x="81" y="48" width="17" height="31"/><rect x="111" y="29" width="17" height="37"/></g><path d="M20 112 H160" stroke="#9caeb0"/><circle cx="90" cy="95" r="5" fill="#9caeb0" fill-opacity=".7"/></svg>`,
+ water:`<svg viewBox="0 0 180 130"><path d="M18 77 Q38 60 58 77 T98 77 T138 77 T178 77 V116 H18Z" fill="#9caeb0" fill-opacity=".4"/><g stroke="#82979a" fill="none"><path d="M18 77 Q38 60 58 77 T98 77 T138 77 T178 77"/><path d="M26 91 Q46 78 66 91 T106 91 T146 91"/><path d="M40 105 Q60 96 80 105 T120 105 T160 105"/></g><circle cx="89" cy="39" r="17" fill="#b58e88" fill-opacity=".25" stroke="#b58e88"/><path d="M89 7 V18 M89 61 V71 M57 39 H68 M110 39 H121" stroke="#849187"/></svg>`,
+ mirror:`<svg viewBox="0 0 180 130"><path d="M90 8 C121 8 143 34 143 65 C143 98 121 120 90 120 C59 120 37 98 37 65 C37 34 59 8 90 8Z" fill="#9caeb0" fill-opacity=".18" stroke="#82918a"/><path d="M90 9 V120" stroke="#b58e88" stroke-dasharray="3 4"/><path d="M58 51 Q74 36 87 51 M93 51 Q106 36 122 51" stroke="#7e8b82" fill="none"/><path d="M68 83 Q90 98 112 83" fill="none" stroke="#b58e88"/><circle cx="90" cy="65" r="3" fill="#b58e88"/></svg>`,
+ protocol:`<svg viewBox="0 0 180 130"><g fill="none" stroke="#829187"><path d="M90 12 L145 43 L145 93 L90 122 L35 93 L35 43Z"/><path d="M90 12 V122 M35 43 L145 93 M145 43 L35 93" opacity=".5"/><path d="M62 28 L118 101 M118 28 L62 101" stroke="#b58e88"/><circle cx="90" cy="67" r="17" fill="#b58e88" fill-opacity=".22"/></g><circle cx="90" cy="67" r="4" fill="#b58e88"/></svg>`,
+ quill:`<svg viewBox="0 0 180 130"><path d="M48 107 Q50 34 131 13 Q123 74 48 107Z" fill="#aab3a6" fill-opacity=".35" stroke="#829187"/><path d="M48 107 Q90 67 131 13 M69 87 L67 59 M87 71 L104 71" stroke="#829187"/><path d="M40 114 L135 18" stroke="#b58e88" stroke-width="1.5"/><path d="M31 118 H148" stroke="#9caeb0"/></svg>`
+};
+let audioCtx=null, master=null, droneOsc=null, droneGain=null;
+function soundOn(){
+ if(!audioCtx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;audioCtx=new AC();master=audioCtx.createGain();master.gain.value=.22;master.connect(audioCtx.destination);droneOsc=audioCtx.createOscillator();droneGain=audioCtx.createGain();droneOsc.type='sine';droneOsc.frequency.value=54;droneGain.gain.value=0;droneOsc.connect(droneGain);droneGain.connect(master);droneOsc.start();}
+ if(audioCtx.state==='suspended')audioCtx.resume();state.sound=true;droneGain.gain.cancelScheduledValues(audioCtx.currentTime);droneGain.gain.setTargetAtTime(.08,audioCtx.currentTime,.8);$('#soundLabel').textContent='声音：开启';$('#soundIcon').textContent='♫';toast('环境声已开启');
+}
+function soundOff(){state.sound=false;if(audioCtx&&droneGain)droneGain.gain.setTargetAtTime(0,audioCtx.currentTime,.3);$('#soundLabel').textContent='声音：关闭';$('#soundIcon').textContent='♩';}
+function blip(freq=420,dur=.12){if(!state.sound||!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.setValueAtTime(freq,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(Math.max(80,freq*.58),audioCtx.currentTime+dur);g.gain.setValueAtTime(.0001,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.06,audioCtx.currentTime+.012);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);o.connect(g);g.connect(master);o.start();o.stop(audioCtx.currentTime+dur+.02)}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),1900)}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({...state,sound:false}))}catch(e){}}
+function load(){try{const v=JSON.parse(localStorage.getItem(SAVE_KEY));return v&&v.scene?v:null}catch(e){return null}}
+function updateMeters(){
+ const max=12;[['echo',state.echo],['order',state.order],['memory',state.memory]].forEach(([k,v])=>{$('#'+k+'Val').textContent=v;$('#'+k+'Bar').style.width=Math.min(100,v/max*100)+'%'})
+}
+function updateProgress(s){const n=s.n||totalScenes;$('#currentNo').textContent=String(n).padStart(2,'0');$('#progressFill').style.width=Math.min(100,(n/totalScenes)*100)+'%';document.querySelectorAll('.act').forEach((el,i)=>el.classList.toggle('active',i===s.act));}
+function render(sceneId){
+ const s=scenes[sceneId];if(!s)return;
+ state.scene=sceneId;state.visited.push(sceneId);save();
+ $('#sceneNo').textContent=s.code;$('#sceneTitle').textContent=s.title;$('#sceneSub').textContent=s.sub;$('#sceneArt').innerHTML=art[s.art]||art.tower;
+ $('#prose').innerHTML=[...s.text,...(expansions[sceneId]||[]),...(chapterCoda[sceneId]||[]),...(chapterCoda2[sceneId]||[]),...(chapterCoda3[sceneId]||[])].map(p=>`<p>${p}</p>`).join('');
+ const ch=$('#choices');ch.innerHTML='<div class="choice-intro">你将如何回应？ / CHOOSE YOUR TRACE</div>';
+ s.choices.forEach((c,i)=>{const b=document.createElement('button');b.className='choice';b.innerHTML=`<span class="choice-index">0${i+1}</span><span><span class="choice-title">${c.t}</span><span class="choice-desc">${c.d}</span></span><span class="choice-arrow">↗</span>`;b.addEventListener('click',()=>choose(s,c,i));ch.appendChild(b)});
+ $('#sceneFootText').textContent='记录自动保存于此设备　·　'+state.choices.length+' 项选择';updateProgress(s);updateMeters();
+ $('#storyMain').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function choose(s,c,i){
+ Object.entries(c.e||{}).forEach(([k,v])=>state[k]+=v);
+ state.choices.push({scene:s.title,choice:c.t,detail:c.j});state.archive.push({scene:s.title,choice:c.t,detail:c.j});
+ blip(360+i*95,.16);save();updateMeters();
+ if(c.next==='ending'){showEnding();return}
+ const next=c.next;$('#storyMain').style.opacity='.25';$('#storyMain').style.transform='translateY(8px)';setTimeout(()=>{render(next);$('#storyMain').style.opacity='1';$('#storyMain').style.transform='translateY(0)'},220);
+}
+function decideEnding(){
+ const {echo,order,memory}=state;
+ if(order>=4 && order>=echo && order>=memory)return 'order';
+ if(echo>=4 && echo>order)return 'chorus';
+ return 'memory';
+}
+function showEnding(){
+ const key=decideEnding(),e=endingData[key];state.ended=true;state.scene='ending';save();
+ $('#sceneNo').textContent=e.stamp;$('#sceneTitle').textContent=e.title;$('#sceneSub').textContent=e.sub;$('#sceneArt').innerHTML=art[key==='chorus'?'water':key==='order'?'protocol':'quill'];
+ $('#prose').innerHTML=[...e.text,...(endingExpansions[key]||[]),...(endingCoda[key]||[])].map(p=>`<p>${p}</p>`).join('')+`<blockquote>${e.epilogue}</blockquote>`;
+ $('#choices').innerHTML=`<div class="ending"><div class="ending-stamp">${e.stamp}</div><h3>${e.title}</h3><p>${e.epilogue}</p><div class="ending-actions"><button class="primary" id="againBtn"><span>重新进入这座塔　↗</span></button><button class="text-btn" id="endingArchiveBtn">查看完整档案</button></div></div>`;
+ $('#againBtn').addEventListener('click',()=>resetGame());$('#endingArchiveBtn').addEventListener('click',openJournal);
+ $('#sceneFootText').textContent='结局已生成　·　你的选择已写入档案';$('#currentNo').textContent='∞';$('#progressFill').style.width='100%';updateMeters();$('#storyMain').scrollIntoView({behavior:'smooth',block:'start'});blip(220,.7);
+}
+function startGame(){coverEl.style.display='none';storyEl.style.display='grid';render('s01');}
+function resetGame(){Object.assign(state,{scene:'s01',echo:0,order:0,memory:0,choices:[],archive:[],visited:[],ended:false});save();storyEl.style.display='grid';coverEl.style.display='none';render('s01');toast('新的记录已经开始');}
+function resumeGame(v){Object.assign(state,v);state.sound=false;if(state.ended||state.scene==='ending')showEnding();else render(state.scene);coverEl.style.display='none';storyEl.style.display='grid';toast('已恢复上次记录')}
+function openJournal(){
+ const c=$('#journalContent');if(!state.archive.length){c.innerHTML='<div class="archive-empty">档案仍然空白。<br/>你还没有在这座塔里留下任何选择。<br/><br/>空白并不等于没有发生。它只是尚未被写下。</div>'}
+ else c.innerHTML=state.archive.map((a,i)=>`<div class="archive-item"><small>TRACE ${String(i+1).padStart(2,'0')}　/　${a.scene}</small><h4>${a.choice}</h4><p>${a.detail}</p></div>`).join('')+`<div class="archive-item"><small>INNER TENDENCY</small><p>共鸣 ${state.echo}　/　秩序 ${state.order}　/　记忆 ${state.memory}</p></div>`;
+ $('#journalModal').classList.add('open');blip(520,.08)
+}
+function closeJournal(){$('#journalModal').classList.remove('open')}
+$('#startBtn').addEventListener('click',()=>{startGame();blip(320,.3)});
+$('#resumeBtn').addEventListener('click',()=>{const v=load();if(v)resumeGame(v)});
+$('#journalBtn').addEventListener('click',openJournal);$('#archiveInline').addEventListener('click',openJournal);$('#closeJournal').addEventListener('click',closeJournal);
+$('#journalModal').addEventListener('click',e=>{if(e.target===$('#journalModal'))closeJournal()});
+$('#restartBtn').addEventListener('click',()=>{if(confirm('重新开始会覆盖当前设备上的这份记录。要继续吗？'))resetGame()});
+function toggleSound(){if(state.sound)soundOff();else soundOn()}
+$('#soundBtn').addEventListener('click',toggleSound);$('#soundInline').addEventListener('click',toggleSound);
+const previous=load();if(previous){$('#resumeBtn').style.display='inline-block'}
 
-        function toggleLangMenu() {
-            document.getElementById('lang-options').classList.toggle('active');
-        }
-
-        function setLang(lang) {
-            currentLang = lang;
-            document.getElementById('current-lang').innerText = lang.toUpperCase();
-            document.getElementById('lang-options').classList.remove('active');
-            
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (i18n[lang][key]) el.innerHTML = i18n[lang][key];
-            });
-            updateStateDesc();
-        }
-
-        function toggleModal() {
-            document.getElementById('guide-modal').classList.toggle('active');
-        }
-
-        // --- Interactive Liquid Background ---
-        const blobs = [
-            document.querySelector('.blob-1'),
-            document.querySelector('.blob-2'),
-            document.querySelector('.blob-3')
-        ];
-        
-        document.addEventListener('mousemove', (e) => {
-            const x = (e.clientX / window.innerWidth - 0.5) * 40; // max 20% offset
-            const y = (e.clientY / window.innerHeight - 0.5) * 40;
-            
-            blobs[0].style.transform = `translate(${x}%, ${y}%)`;
-            blobs[1].style.transform = `translate(${-x}%, ${-y}%)`;
-            blobs[2].style.transform = `translate(${x*1.5}%, ${-y*1.5}%)`;
-        });
-
-        // --- Tetris Game Logic ---
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const nextCanvas = document.getElementById('next-piece-canvas');
-        const nextCtx = nextCanvas.getContext('2d');
-        const wrapper = document.getElementById('game-wrapper');
-        const stateDesc = document.getElementById('state-desc');
-        const scoreElement = document.getElementById('score-display');
-        const levelElement = document.getElementById('level-display');
-        const levelMsg = document.getElementById('level-msg');
-        const gameOverScreen = document.getElementById('game-over');
-
-        const COLS = 10;
-        const ROWS = 20;
-        const BLOCK_SIZE = 30; // Internal resolution
-
-        const COLORS = [ null, '#FF3366', '#20A4F3', '#FFD447', '#F6F7EB', '#FF7F11', '#8AC926', '#9D4EDD' ];
-        const SHAPES = [
-            [],
-            [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], // I
-            [[2,0,0],[2,2,2],[0,0,0]], // J
-            [[0,0,3],[3,3,3],[0,0,0]], // L
-            [[4,4],[4,4]], // O
-            [[0,5,5],[5,5,0],[0,0,0]], // S
-            [[0,6,0],[6,6,6],[0,0,0]], // T
-            [[7,7,0],[0,7,7],[0,0,0]]  // Z
-        ];
-
-        let board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-        let score = 0, level = 1;
-        let dropCounter = 0, dropInterval = 1000, lastTime = 0, globalTime = 0;
-        let gameActive = true;
-        
-        let particles = []; // For line clear effects
-
-        const player = { pos: {x: 0, y: 0}, matrix: null, isSchrodinger: false, waveCollapsed: true };
-        let nextPiece = null;
-        let lastShapeShiftTime = 0;
-
-        const LEVELS = [
-            { threshold: 0, stateKey: "state_l1" },
-            { threshold: 400, stateKey: "state_l2" },
-            { threshold: 1000, stateKey: "state_l3" },
-            { threshold: 2000, stateKey: "state_l4" },
-            { threshold: 3500, stateKey: "state_l5" }
-        ];
-
-        function createPiece(type) { return SHAPES[type].map(row => [...row]); }
-
-        function drawBlock(ctx, x, y, colorId, scale = 1, alpha = 1) {
-            ctx.fillStyle = COLORS[colorId];
-            ctx.globalAlpha = alpha;
-            
-            let renderX = x * BLOCK_SIZE;
-            let renderY = y * BLOCK_SIZE;
-            let size = BLOCK_SIZE * scale;
-            let offset = (BLOCK_SIZE - size) / 2;
-
-            // Geometry Level 5 adjustments
-            if (level >= 5 && ctx === window.ctx) {
-                renderX += Math.sin(globalTime * 0.005 + y) * 5;
-                renderY += Math.cos(globalTime * 0.003 + x) * 5;
-            }
-
-            ctx.fillRect(renderX + offset, renderY + offset, size, size);
-            ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-            ctx.strokeRect(renderX + offset, renderY + offset, size, size);
-            ctx.fillStyle = 'rgba(255,255,255,0.2)';
-            ctx.fillRect(renderX + offset + 2, renderY + offset + 2, size - 4, size/3);
-            ctx.globalAlpha = 1.0;
-        }
-
-        function drawMatrix(ctx, matrix, offset, isNext = false) {
-            matrix.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value !== 0) {
-                        let drawX = offset.x + x;
-                        let drawY = offset.y + y;
-                        if (!isNext && level >= 3) drawX = (drawX + COLS) % COLS; // Topology
-                        drawBlock(ctx, drawX, drawY, value);
-                    }
-                });
-            });
-        }
-
-        // Particle System for Line Clear
-        function spawnParticles(yStart, count = 20) {
-            for(let i=0; i<count; i++) {
-                particles.push({
-                    x: Math.random() * (COLS * BLOCK_SIZE),
-                    y: yStart * BLOCK_SIZE + Math.random() * BLOCK_SIZE,
-                    vx: (Math.random() - 0.5) * 10,
-                    vy: (Math.random() - 0.5) * 10 - 2,
-                    life: 1.0,
-                    color: COLORS[Math.floor(Math.random() * 7) + 1]
-                });
-            }
-        }
-
-        function drawParticles() {
-            for(let i = particles.length - 1; i >= 0; i--) {
-                let p = particles[i];
-                p.x += p.vx; p.y += p.vy;
-                p.life -= 0.02;
-                if(p.life <= 0) { particles.splice(i, 1); continue; }
-                ctx.fillStyle = p.color;
-                ctx.globalAlpha = p.life;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
-                ctx.fill();
-            }
-            ctx.globalAlpha = 1.0;
-        }
-
-        function draw() {
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Level 5 Warp Grid
-            if (level >= 5) {
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctx.lineWidth = 1;
-                for(let i=0; i<ROWS; i++) {
-                    ctx.beginPath();
-                    for(let j=0; j<=COLS; j++) {
-                        let offsetY = Math.sin(globalTime * 0.002 + j) * 10;
-                        ctx.lineTo(j * BLOCK_SIZE, i * BLOCK_SIZE + offsetY);
-                    }
-                    ctx.stroke();
-                }
-            }
-
-            drawMatrix(ctx, board, {x: 0, y: 0});
-            drawMatrix(ctx, player.matrix, player.pos);
-            drawParticles();
-        }
-
-        function drawNextPiece() {
-            nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-            const offsetX = (4 - nextPiece[0].length) / 2;
-            const offsetY = (4 - nextPiece.length) / 2;
-            drawMatrix(nextCtx, nextPiece, {x: offsetX, y: offsetY}, true);
-        }
-
-        function merge(board, player) {
-            player.matrix.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value !== 0) {
-                        let targetX = player.pos.x + x;
-                        if (level >= 3) targetX = (targetX + COLS) % COLS;
-                        if (player.pos.y + y >= 0 && player.pos.y + y < ROWS) {
-                            board[player.pos.y + y][targetX] = value;
-                        }
-                    }
-                });
-            });
-        }
-
-        function collide(board, player) {
-            const m = player.matrix, o = player.pos;
-            for (let y = 0; y < m.length; ++y) {
-                for (let x = 0; x < m[y].length; ++x) {
-                    if (m[y][x] !== 0) {
-                        let targetX = o.x + x;
-                        let targetY = o.y + y;
-                        if (level >= 3) targetX = (targetX + COLS) % COLS;
-                        else if (targetX < 0 || targetX >= COLS) return true;
-
-                        if (targetY >= ROWS || (targetY >= 0 && board[targetY][targetX] !== 0)) return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        function playerDrop() {
-            player.pos.y++;
-            player.waveCollapsed = true;
-            if (collide(board, player)) {
-                player.pos.y--;
-                merge(board, player);
-                resetPlayer();
-                sweep();
-            }
-            dropCounter = 0;
-        }
-
-        function playerMove(offset) {
-            player.pos.x += offset;
-            player.waveCollapsed = true;
-            if (collide(board, player)) player.pos.x -= offset;
-        }
-
-        function playerRotate(dir) {
-            const pos = player.pos.x;
-            let offset = 1;
-            player.waveCollapsed = true;
-            const transposed = player.matrix.map((_, i) => player.matrix.map(row => row[i]));
-            player.matrix = dir > 0 ? transposed.map(row => row.reverse()) : transposed.reverse();
-
-            while (collide(board, player)) {
-                player.pos.x += offset;
-                offset = -(offset + (offset > 0 ? 1 : -1));
-                if (offset > player.matrix[0].length) {
-                    player.matrix = dir > 0 ? transposed.reverse() : transposed.map(row => row.reverse());
-                    player.pos.x = pos;
-                    return;
-                }
-            }
-        }
-
-        function resetPlayer() {
-            if (!nextPiece) nextPiece = createPiece(Math.floor(Math.random() * 7) + 1);
-            player.matrix = nextPiece;
-            player.pos.y = 0;
-            player.pos.x = Math.floor(COLS / 2) - Math.floor(player.matrix[0].length / 2);
-            
-            // Probability Skew for Level 4
-            let nextId = Math.floor(Math.random() * 7) + 1;
-            if (level >= 4 && Math.random() > 0.5) nextId = 1; // High chance of Long bar
-
-            nextPiece = createPiece(nextId);
-            drawNextPiece();
-
-            if (level >= 4 && Math.random() > 0.3) {
-                player.isSchrodinger = true; player.waveCollapsed = false;
-            } else {
-                player.isSchrodinger = false; player.waveCollapsed = true;
-            }
-
-            if (collide(board, player)) {
-                gameActive = false; gameOverScreen.style.display = 'flex';
-            }
-        }
-
-        function sweep() {
-            let rowCount = 1, linesCleared = 0;
-            outer: for (let y = ROWS - 1; y >= 0; --y) {
-                for (let x = 0; x < COLS; ++x) {
-                    if (board[y][x] === 0) continue outer;
-                }
-                const row = board.splice(y, 1)[0].fill(0);
-                board.unshift(row);
-                spawnParticles(y); // Create line clear visual
-                ++y;
-                score += rowCount * 100;
-                rowCount *= 2;
-                linesCleared++;
-            }
-
-            if (linesCleared > 0) { updateScore(); checkLevel(); }
-        }
-
-        function updateScore() { scoreElement.innerText = score; }
-
-        function updateStateDesc() {
-            stateDesc.innerText = i18n[currentLang][LEVELS[level-1].stateKey] || LEVELS[level-1].stateKey;
-        }
-
-        function checkLevel() {
-            let newLevel = 1;
-            for (let i = LEVELS.length - 1; i >= 0; i--) {
-                if (score >= LEVELS[i].threshold) { newLevel = i + 1; break; }
-            }
-            if (newLevel > level) {
-                level = newLevel;
-                levelElement.innerText = level;
-                dropInterval *= 0.85; // Speed up progressively
-                updateStateDesc();
-                showLevelMessage(`Lvl ${level}`);
-            }
-        }
-
-        function showLevelMessage(msg) {
-            levelMsg.innerText = msg;
-            levelMsg.classList.add('show');
-            setTimeout(() => levelMsg.classList.remove('show'), 2000);
-        }
-
-        function update(time = 0) {
-            if (!gameActive) return;
-            const deltaTime = time - lastTime;
-            lastTime = time;
-            globalTime += deltaTime;
-
-            // Schrödinger Pieces (Lvl 4)
-            if (player.isSchrodinger && !player.waveCollapsed && (time - lastShapeShiftTime > 150)) {
-                const testPiece = createPiece(Math.floor(Math.random() * 7) + 1);
-                const oldMatrix = player.matrix;
-                player.matrix = testPiece;
-                if (collide(board, player)) player.matrix = oldMatrix;
-                lastShapeShiftTime = time;
-            }
-
-            dropCounter += deltaTime;
-            if (dropCounter > dropInterval) playerDrop();
-
-            // Lvl 2 Affine Transforms
-            if (level >= 2) {
-                const skew = Math.sin(globalTime * 0.001) * 3; 
-                const rot = Math.cos(globalTime * 0.0015) * 2; 
-                wrapper.style.transform = `perspective(1000px) rotateZ(${rot}deg) skewX(${skew}deg)`;
-            } else { wrapper.style.transform = 'none'; }
-
-            draw();
-            requestAnimationFrame(update);
-        }
-
-        function resetGame() {
-            board.forEach(row => row.fill(0));
-            score = 0; level = 1; dropInterval = 1000; particles = [];
-            updateScore(); levelElement.innerText = level;
-            updateStateDesc();
-            wrapper.style.transform = 'none';
-            gameOverScreen.style.display = 'none';
-            gameActive = true; resetPlayer(); update();
-        }
-
-        // --- Controls ---
-        document.addEventListener('keydown', event => {
-            if (!gameActive) return;
-            if([37, 38, 39, 40, 32].includes(event.keyCode)) event.preventDefault();
-            if (event.keyCode === 37) playerMove(-1);
-            else if (event.keyCode === 39) playerMove(1);
-            else if (event.keyCode === 40) playerDrop();
-            else if (event.keyCode === 38) playerRotate(1);
-        });
-
-        // Mobile Controls setup
-        const addTouch = (id, action) => {
-            const btn = document.getElementById(id);
-            let interval;
-            const start = (e) => { e.preventDefault(); action(); interval = setInterval(action, 150); };
-            const stop = (e) => { e.preventDefault(); clearInterval(interval); };
-            btn.addEventListener('touchstart', start, {passive: false});
-            btn.addEventListener('touchend', stop);
-            btn.addEventListener('mousedown', start);
-            btn.addEventListener('mouseup', stop);
-            btn.addEventListener('mouseleave', stop);
-        };
-
-        addTouch('btn-left', () => { if(gameActive) playerMove(-1); });
-        addTouch('btn-right', () => { if(gameActive) playerMove(1); });
-        addTouch('btn-up', () => { if(gameActive) playerRotate(1); }); // Rotate doesn't really need interval, but fine for quick taps
-        addTouch('btn-down', () => { if(gameActive) playerDrop(); });
-
-        // Init
-        setLang('en');
-        resetPlayer();
-        update();
-
-    </script>
+// Mouse field, native particle drawing, and contextual word notes.
+const root=document.documentElement,cursor=$('#cursor'),dot=$('#cursor-dot');let mouse={x:innerWidth/2,y:innerHeight/2},smooth={...mouse};
+window.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;root.style.setProperty('--mx',e.clientX+'px');root.style.setProperty('--my',e.clientY+'px');cursor.style.left=e.clientX+'px';cursor.style.top=e.clientY+'px';dot.style.left=e.clientX+'px';dot.style.top=e.clientY+'px'});
+document.addEventListener('mouseover',e=>{if(e.target.closest('button,em'))document.body.classList.add('hovering');else document.body.classList.remove('hovering')});
+const tip=$('#tooltip');document.addEventListener('mouseover',e=>{const el=e.target.closest('[data-gloss]');if(!el)return;tip.textContent=el.dataset.gloss;tip.classList.add('show')});document.addEventListener('mousemove',e=>{tip.style.left=Math.min(innerWidth-235,e.clientX+15)+'px';tip.style.top=Math.min(innerHeight-90,e.clientY+17)+'px'});document.addEventListener('mouseout',e=>{if(e.target.closest('[data-gloss]'))tip.classList.remove('show')});
+const canvas=$('#sky'),ctx=canvas.getContext('2d');let particles=[];function resize(){const dpr=Math.min(devicePixelRatio||1,2);canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px';ctx.setTransform(dpr,0,0,dpr,0,0);particles=Array.from({length:Math.min(55,Math.floor(innerWidth/24))},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.5+.25,v:Math.random()*.18+.04,a:Math.random()*.24+.05,phase:Math.random()*6.28}))}window.addEventListener('resize',resize);resize();
+function draw(){ctx.clearRect(0,0,innerWidth,innerHeight);const g=ctx.createLinearGradient(0,0,innerWidth,innerHeight);g.addColorStop(0,'rgba(130,147,135,.05)');g.addColorStop(1,'rgba(181,142,136,.035)');ctx.fillStyle=g;ctx.fillRect(0,0,innerWidth,innerHeight);particles.forEach(p=>{p.y-=p.v;p.x+=Math.sin(p.phase+=.006)*.12;if(p.y< -5){p.y=innerHeight+5;p.x=Math.random()*innerWidth}const dx=p.x-mouse.x,dy=p.y-mouse.y,dist=Math.sqrt(dx*dx+dy*dy);let alpha=p.a*(dist<150?.25:1);ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(103,123,113,${alpha})`;ctx.fill()});requestAnimationFrame(draw)}draw();
+})();
+</script>
 </body>
 </html>
